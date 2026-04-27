@@ -1,0 +1,727 @@
+
+:root {
+    --bg-primary: #0a0e1a;      /* Sehr dunkles Blau-Schwarz */
+    --bg-secondary: #131828;    /* Leicht heller für Karten/Sections */
+    --bg-elevated: #181e30;     /* Hover/aktive Karten */
+    --text-primary: #e8ecf4;    /* Haupttext: fast weiß */
+    --text-muted: #8892a6;      /* Nebeninfos, Unterzeilen */
+    --accent: #6b8cff;          /* Akzentfarbe (Links, Hover) */
+    --accent-glow: rgba(107, 140, 255, 0.25);
+    --border: #1f2538;          /* Dezente Trennlinien */
+    --border-strong: #2a3148;
+
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 2rem;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-primary);
+    background-image:
+        radial-gradient(ellipse at top, rgba(107, 140, 255, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom right, rgba(34, 211, 238, 0.05) 0%, transparent 50%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.site-header {
+    padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+}
+
+.site-header h1 {
+    margin: 0;
+    font-size: 1.875rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #e8ecf4 0%, #6b8cff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    margin: 0.25rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+}
+
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+.chart-title {
+    margin: 0 0 var(--spacing-md);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease;
+}
+
+.chart-title:hover {
+    color: var(--accent);
+}
+
+/* Chevron-Indikator: zeigt nach unten (offen), nach rechts (eingeklappt) */
+.chart-title::before {
+    content: "▾";
+    display: inline-block;
+    font-size: 0.85em;
+    line-height: 1;
+    color: var(--accent);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+    flex-shrink: 0;
+    width: 0.9em;
+    text-align: center;
+}
+
+.chart-title.is-collapsed::before {
+    transform: rotate(-90deg);
+}
+
+/* Klickbarer Bereich: ganze Header-Zeile (Titel + Controls) */
+.chart-header {
+    cursor: pointer;
+}
+
+.chart-header .chart-controls {
+    cursor: auto;
+}
+
+.chart-container {
+    position: relative;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    overflow: hidden;  /* SVG-Überlauf verhindern */
+    box-shadow: var(--shadow-md);
+    max-height: 2000px;
+    opacity: 1;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.3s ease,
+        padding 0.35s ease,
+        margin-bottom 0.35s ease,
+        border-width 0.3s ease;
+}
+
+.chart-container:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Eingeklappter Zustand: Chart wird ausgeblendet, Header bleibt */
+.chart-container.is-collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+
+/* SVG nimmt maximal die volle Breite des Containers ein.
+   Treemap & Bubble setzen width="100%" direkt am SVG, der Kalender behält
+   seine native Größe. */
+.chart-container svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Loading-Hinweis, bevor Daten da sind */
+.chart-container:empty::before {
+    content: "Lädt …";
+    display: block;
+    color: var(--text-muted);
+    padding: var(--spacing-lg);
+    text-align: center;
+}
+
+/* chart header (Titel + Legende) */
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap; /* If window is too narrow, stack title and legend */
+}
+
+.chart-header .chart-title {
+    margin: 0;
+}
+
+/* Chart-Controls */
+.chart-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+
+/* dropdown styling */
+.year-select {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 0.4rem 0.7rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.year-select:hover {
+    border-color: var(--accent);
+}
+
+.year-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+
+/* =========================================
+   UFO-LOADER (während Daten geladen werden)
+   ========================================= */
+.ufo-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    background:
+        radial-gradient(ellipse at 30% 20%, rgba(107, 140, 255, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 80%, rgba(34, 211, 238, 0.1) 0%, transparent 60%),
+        var(--bg-primary);
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+/* Sternenfeld als Hintergrund */
+.ufo-loader::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(2px 2px at 20% 30%, #fff 50%, transparent 100%),
+        radial-gradient(1px 1px at 60% 70%, #fff 50%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 85% 15%, #fff 50%, transparent 100%),
+        radial-gradient(1px 1px at 35% 85%, #fff 50%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 75% 50%, #fff 50%, transparent 100%),
+        radial-gradient(1px 1px at 10% 60%, #fff 50%, transparent 100%),
+        radial-gradient(2px 2px at 50% 10%, #fff 50%, transparent 100%);
+    opacity: 0.5;
+    animation: stars-twinkle 4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes stars-twinkle {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+}
+
+.ufo-loader.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.ufo-loader__stage {
+    position: relative;
+    width: min(90vw, 700px);
+    height: 200px;
+    overflow: visible;
+}
+
+.ufo-loader__ufo {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 160px;
+    height: auto;
+    margin-top: -65px;
+    animation: ufo-fly-across 4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    filter: drop-shadow(0 6px 20px rgba(34, 211, 238, 0.35));
+}
+
+@keyframes ufo-fly-across {
+    0% {
+        transform: translateX(-180px) translateY(0) rotate(-4deg);
+    }
+    25% {
+        transform: translateX(20%) translateY(-25px) rotate(3deg);
+    }
+    50% {
+        transform: translateX(45%) translateY(15px) rotate(-3deg);
+    }
+    75% {
+        transform: translateX(70%) translateY(-20px) rotate(4deg);
+    }
+    100% {
+        transform: translateX(calc(100% + 60px)) translateY(0) rotate(-4deg);
+    }
+}
+
+.ufo-loader__text {
+    position: relative;
+    color: var(--text-muted);
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    animation: text-pulse 2s ease-in-out infinite;
+    margin: 0;
+}
+
+@keyframes text-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* =========================================
+   UFO-MASKOTTCHEN (folgt dem Scroll)
+   ========================================= */
+.ufo-mascot {
+    position: fixed;
+    top: 100px;
+    left: 0;
+    width: 80px;
+    height: auto;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    will-change: transform;
+    filter: drop-shadow(0 4px 12px rgba(34, 211, 238, 0.3));
+}
+
+.ufo-mascot.is-visible {
+    opacity: 0.85;
+}
+
+.ufo-mascot svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    animation: ufo-bob 2.5s ease-in-out infinite;
+}
+
+@keyframes ufo-bob {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-8px) rotate(3deg); }
+}
+
+/* Reduzierte Bewegungen respektieren */
+@media (prefers-reduced-motion: reduce) {
+    .ufo-loader__ufo,
+    .ufo-mascot svg,
+    .ufo-loader::before,
+    .ufo-loader__text {
+        animation: none;
+    }
+}
+
+
+/* =========================================
+   CTA BUTTON ZUR SECOND-WORLD-SEITE
+   ========================================= */
+.cta-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    margin: var(--spacing-lg) 0 var(--spacing-md);
+    padding-top: var(--spacing-md);
+}
+
+.cta-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.85rem 1.6rem;
+    background: linear-gradient(135deg, #1f2538 0%, #131828 100%);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition:
+        transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        color 0.2s ease;
+}
+
+.cta-button::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+        rgba(107, 140, 255, 0.25) 0%,
+        rgba(34, 211, 238, 0.18) 100%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    z-index: 0;
+}
+
+.cta-button > * {
+    position: relative;
+    z-index: 1;
+}
+
+.cta-button:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 14px 36px rgba(107, 140, 255, 0.25);
+    color: #fff;
+}
+
+.cta-button:hover::before {
+    opacity: 1;
+}
+
+.cta-button:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.cta-button__arrow {
+    display: inline-block;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cta-button:hover .cta-button__arrow {
+    transform: translateX(4px);
+}
+
+.cta-hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    text-align: center;
+}
+
+
+/* =========================================
+   3D-GLOBUS-SEKTION
+   ========================================= */
+.globe-section {
+    margin: var(--spacing-lg) 0 var(--spacing-md);
+    padding: var(--spacing-md) 0;
+    border-top: 1px solid var(--border);
+}
+
+.globe-section__intro {
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto var(--spacing-md);
+    padding: 0 1rem;
+}
+
+.globe-section__eyebrow {
+    margin: 0 0 0.5rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.globe-section__title {
+    margin: 0 0 0.75rem;
+    font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+    font-weight: 700;
+    background: linear-gradient(135deg, #e8ecf4 0%, #6b8cff 60%, #22d3ee 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.01em;
+}
+
+.globe-section__lede {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.55;
+}
+
+.globe-stage {
+    position: relative;
+    margin: 0 auto;
+    max-width: 1400px;
+}
+
+.globe-container {
+    position: relative;
+    width: 100%;
+    height: clamp(440px, 65vh, 720px);
+    border-radius: 18px;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse at 30% 20%, rgba(107, 140, 255, 0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 85%, rgba(34, 211, 238, 0.12) 0%, transparent 60%),
+        linear-gradient(180deg, #060912 0%, #0a0e1a 100%);
+    border: 1px solid var(--border-strong);
+    box-shadow:
+        var(--shadow-lg),
+        inset 0 0 80px rgba(107, 140, 255, 0.06);
+}
+
+.globe-container::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(1.5px 1.5px at 12% 18%, rgba(255, 255, 255, 0.65), transparent 60%),
+        radial-gradient(1px 1px at 28% 72%, rgba(255, 255, 255, 0.55), transparent 60%),
+        radial-gradient(1px 1px at 55% 32%, rgba(255, 255, 255, 0.5), transparent 60%),
+        radial-gradient(1.5px 1.5px at 78% 60%, rgba(255, 255, 255, 0.6), transparent 60%),
+        radial-gradient(1px 1px at 88% 22%, rgba(255, 255, 255, 0.4), transparent 60%),
+        radial-gradient(1px 1px at 42% 88%, rgba(255, 255, 255, 0.5), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.85;
+}
+
+.globe-container canvas {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.ar-button-host {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 5;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.4rem;
+    pointer-events: none;
+}
+
+.ar-button-host > * {
+    pointer-events: auto;
+}
+
+.ar-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    max-width: 260px;
+}
+
+.ar-launch-button__icon {
+    display: inline-block;
+    margin-right: 0.45rem;
+    font-size: 0.9em;
+    transform: translateY(-1px);
+}
+
+.ar-hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    background: rgba(10, 14, 26, 0.7);
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.65rem;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    text-align: right;
+}
+
+/* Vollbild-Modus */
+.globe-container:fullscreen,
+.globe-container:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+}
+
+.globe-container:fullscreen .ar-button-host,
+.globe-container:-webkit-full-screen .ar-button-host {
+    bottom: 1.5rem;
+    right: 1.5rem;
+}
+
+/* ---------- Webcam-AR-Modus ---------- */
+.webcam-ar-feed {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    /* Spiegel-Optik wie eine echte „Vor-Kamera" – wirkt natürlicher */
+    transform: scaleX(-1);
+    pointer-events: none;
+    background: #000;
+}
+
+.globe-container.webcam-ar-active {
+    background: #000 !important;
+    border-color: rgba(34, 211, 238, 0.5);
+    box-shadow:
+        0 0 0 1px rgba(34, 211, 238, 0.4),
+        0 0 60px rgba(34, 211, 238, 0.25),
+        inset 0 0 80px rgba(0, 0, 0, 0.4);
+}
+
+.globe-container.webcam-ar-active::before {
+    /* Die statischen Sterne bei Webcam-AR ausblenden */
+    display: none;
+}
+
+.globe-container.webcam-ar-active::after {
+    /* Subtiler Scanline-/Vignette-Overlay für AR-HUD-Look */
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background:
+        radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
+        repeating-linear-gradient(
+            to bottom,
+            rgba(34, 211, 238, 0.0) 0px,
+            rgba(34, 211, 238, 0.0) 3px,
+            rgba(34, 211, 238, 0.04) 4px
+        );
+    mix-blend-mode: screen;
+}
+
+.ar-launch-button.is-active {
+    background: linear-gradient(135deg, #0e7490 0%, #1f2538 100%) !important;
+    border-color: rgba(34, 211, 238, 0.7) !important;
+    color: #fff !important;
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.4) !important;
+}
+
+.ar-button-host button,
+.ar-launch-button {
+    background: linear-gradient(135deg, #1f2538 0%, #131828 100%) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 999px !important;
+    padding: 0.65rem 1.25rem !important;
+    font: 600 0.85rem var(--font-sans) !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
+    cursor: pointer !important;
+    box-shadow: var(--shadow-md) !important;
+    backdrop-filter: blur(10px);
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        color 0.2s ease !important;
+    opacity: 1 !important;
+    position: static !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: auto !important;
+}
+
+.ar-button-host button:hover,
+.ar-launch-button:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent) !important;
+    color: #fff !important;
+    box-shadow: 0 12px 28px rgba(107, 140, 255, 0.3) !important;
+}
+
+.ar-unsupported {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    padding: 0.55rem 1rem;
+    background: rgba(19, 24, 40, 0.7);
+    border: 1px dashed var(--border);
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    max-width: 280px;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.globe-hint {
+    margin: 0.85rem 0 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 640px) {
+    .globe-container {
+        height: clamp(360px, 70vh, 520px);
+        border-radius: 14px;
+    }
+    .ar-button-host {
+        bottom: 0.75rem;
+        right: 0.75rem;
+        left: 0.75rem;
+        justify-content: flex-end;
+    }
+    .ar-unsupported {
+        font-size: 0.72rem;
+    }
+}

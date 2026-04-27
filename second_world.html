@@ -3,16 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UFO Sichtungen – Hierarchischer Überblick</title>
+    <title>UFO Sichtungen – wata f*ck</title>
     <link rel="stylesheet" href="style.css" />
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
 </head>
 <body>
     <!-- UFO-Loader: erscheint, solange Daten geladen werden -->
@@ -20,7 +12,7 @@
         <div class="ufo-loader__stage">
             <svg class="ufo-loader__ufo" viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                    <radialGradient id="ufo-glow" cx="50%" cy="100%" r="50%">
+                    <radialGradient id="ufo-glow" cx="80%" cy="130%" r="80%">
                         <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.7"/>
                         <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
                     </radialGradient>
@@ -99,58 +91,14 @@
     </div>
 
     <header class="site-header">
-        <h1>UFO Sichtungen</h1>
+        <h1>TEST</h1>
     </header>
     <main>
-        <p class="subtitle">Hierarchischer Überblick: Land → Staat → Stadt</p>
-        <h2 id="treemap-title" class="chart-title">Alle Länder</h2>
+        <h2>TEST_2</h2>
 
-        <section id="treemap-container" class="chart-container"></section>
-
-        <div class="chart-header">
-            <h2 id="calendar-title" class="chart-title">Sichtungen über die Zeit pro Tag</h2>
-            <div class="chart-controls">
-                <label for="year-select">Jahr:</label>
-                <select id="year-select" class="year-select"></select>
-            </div>
-        </div>
-        <section id="calendar-container" class="chart-container"></section>
-        <div class="chart-header">
-            <h2 id="bubble-title" class="chart-title">Häufigste Wörter in den Sichtungs-Zusammenfassungen</h2>
-        </div>
-        <section id="bubble-container" class="chart-container"></section>
-
-        <section class="globe-section" id="globe-section">
-            <div class="globe-section__intro">
-                <p class="globe-section__eyebrow">Globale Verteilung</p>
-                <h2 class="globe-section__title">Sichtungen rund um den Planeten</h2>
-                <p class="globe-section__lede">
-                    Eine 3D-Karte der Sichtungen aus dem Datensatz – mit umherfliegenden
-                    Aliens und einem Augmented-Reality-Modus für unterstützte Geräte.
-                </p>
-            </div>
-
-            <div class="globe-stage">
-                <div id="globe-container" class="globe-container">
-                    <div id="ar-button-host" class="ar-button-host"></div>
-                </div>
-                <p class="globe-hint">
-                    Ziehen zum Drehen · Scrollen zum Zoomen · AR-Button unten rechts (WebXR)
-                </p>
-            </div>
-        </section>
-
-        <div class="cta-row">
-            <a class="cta-button" href="second_word.html">
-                <span class="cta-button__label">Second World betreten</span>
-                <span class="cta-button__arrow" aria-hidden="true">→</span>
-            </a>
-            <p class="cta-hint">Eine generative UFO-Transmission im p5.js-Stil</p>
-        </div>
 
     </main>
 
     <script type="module" src="app.js"></script>
-    <script type="module" src="globe.js?v=4"></script>
 </body>
 </html>
