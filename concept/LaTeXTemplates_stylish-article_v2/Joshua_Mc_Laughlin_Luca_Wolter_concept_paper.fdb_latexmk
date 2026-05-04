@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex article_3"] 1777479605.94194 "article_3.aux" "article_3.bbl" "article_3" 1777479607.43682 0
+["bibtex Joshua_Mc_Laughlin_Luca_Wolter_concept_paper"] 1777479810.34871 "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.aux" "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.bbl" "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper" 1777479817.88753 0
   "./sample.bib" 1777372172.90281 1191 913ec16aad18d9e2505835c47cae2571 ""
   "/usr/local/texlive/2025/texmf-dist/bibtex/bst/base/unsrt.bst" 1292289607 18030 1376b4b231b50c66211e47e42eda2875 ""
-  "article_3.aux" 1777479607.06147 2581 e25a13ca55d05895f2bc5bde32846b41 "pdflatex"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.aux" 1777479817.55149 2581 e25a13ca55d05895f2bc5bde32846b41 "pdflatex"
   (generated)
-  "article_3.bbl"
-  "article_3.blg"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.bbl"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.blg"
   (rewritten before read)
-["pdflatex"] 1777479606.12522 "/Users/lucawolter/Documents/Informationsvisualisierung/ufo/concept/LaTeXTemplates_stylish-article_v2/article_3.tex" "article_3.pdf" "article_3" 1777479607.43708 0
-  "/Users/lucawolter/Documents/Informationsvisualisierung/ufo/concept/LaTeXTemplates_stylish-article_v2/article_3.tex" 1777479604.37535 11866 e2ebc3369ced8b8839276f521f1232e1 ""
+["pdflatex"] 1777479816.57846 "/Users/lucawolter/Documents/Informationsvisualisierung/ufo/concept/LaTeXTemplates_stylish-article_v2/Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.tex" "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.pdf" "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper" 1777479817.88774 0
+  "/Users/lucawolter/Documents/Informationsvisualisierung/ufo/concept/LaTeXTemplates_stylish-article_v2/Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.tex" 1777479816.3702 11865 034c2e8b828aa5346a8848ddc18eb35f ""
   "/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/helvetic/phvb7t.tfm" 1136768653 2240 eb56c13537f4d8a0bd3fafc25572b1bd ""
@@ -128,18 +128,18 @@
   "/usr/local/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1750585126 3345733 c79a1411d611aa1b5ca7e3550a34fcf6 ""
   "/usr/local/texlive/2025/texmf.cnf" 1741450484 577 418a7058ec8e006d8704f60ecd22c938 ""
   "Globe.png" 1777372172.88596 112195 ea080bcc8e8c556932ec04b999ba5559 ""
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.aux" 1777479817.55149 2581 e25a13ca55d05895f2bc5bde32846b41 "pdflatex"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.bbl" 1777479810.4928 556 593ada87813e234a2c004bc8fc53a922 "bibtex Joshua_Mc_Laughlin_Luca_Wolter_concept_paper"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.out" 1777479817.5524 825 d74a9b78855eeb655349649ca2c0c5a9 "pdflatex"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.tex" 1777479816.3702 11865 034c2e8b828aa5346a8848ddc18eb35f ""
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.toc" 1777479817.55269 553 6e11e83f007ebea1ec82b1f6ab8b1522 "pdflatex"
   "SelfArx.cls" 1777372172.88636 8092 737c8d1591f9545f221c870f69e6d87b ""
-  "article_3.aux" 1777479607.06147 2581 e25a13ca55d05895f2bc5bde32846b41 "pdflatex"
-  "article_3.bbl" 1777479606.12182 556 593ada87813e234a2c004bc8fc53a922 "bibtex article_3"
-  "article_3.out" 1777479607.06237 825 d74a9b78855eeb655349649ca2c0c5a9 "pdflatex"
-  "article_3.tex" 1777479604.37535 11866 e2ebc3369ced8b8839276f521f1232e1 ""
-  "article_3.toc" 1777479607.06265 553 6e11e83f007ebea1ec82b1f6ab8b1522 "pdflatex"
   "bubble.png" 1777372172.90147 315229 0708def8aa69b6b2d8eaa91d12ddabff ""
   "calender.png" 1777372172.90226 18605 147918c1a3576a91713d7996108fb59a ""
   (generated)
-  "article_3.aux"
-  "article_3.log"
-  "article_3.out"
-  "article_3.pdf"
-  "article_3.toc"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.aux"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.log"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.out"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.pdf"
+  "Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.toc"
   (rewritten before read)

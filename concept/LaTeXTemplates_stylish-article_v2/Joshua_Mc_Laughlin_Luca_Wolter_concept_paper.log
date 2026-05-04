@@ -1,10 +1,10 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.6.22)  29 APR 2026 18:20
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.6.22)  29 APR 2026 18:23
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
  %&-line parsing enabled.
-**/Users/lucawolter/Documents/Informationsvisualisierung/ufo/concept/LaTeXTemplates_stylish-article_v2/article_3.tex
-(/Users/lucawolter/Documents/Informationsvisualisierung/ufo/concept/LaTeXTemplates_stylish-article_v2/article_3.tex
+**/Users/lucawolter/Documents/Informationsvisualisierung/ufo/concept/LaTeXTemplates_stylish-article_v2/Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.tex
+(/Users/lucawolter/Documents/Informationsvisualisierung/ufo/concept/LaTeXTemplates_stylish-article_v2/Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.tex
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
 (./SelfArx.cls
@@ -464,8 +464,8 @@ File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
 File: l3backend-pdftex.def 2024-05-08 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count315
 \l__pdf_internal_box=\box57
-) (./article_3.aux)
-\openout1 = `article_3.aux'.
+) (./Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.aux)
+\openout1 = `Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 87.
 LaTeX Font Info:    ... okay on input line 87.
@@ -562,9 +562,9 @@ Package microtype Info: No adjustment of character kerning.
 File: mt-ptm.cfg 2006/04/20 v1.7 microtype config. file: Times (RS)
 )
 Package hyperref Info: Link coloring ON on input line 87.
- (./article_3.out) (./article_3.out)
+ (./Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.out) (./Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.out)
 \@outlinefile=\write3
-\openout3 = `article_3.out'.
+\openout3 = `Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.out'.
 
 LaTeX Font Info:    Trying to load font information for OT1+phv on input line 90.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/psnfss/ot1phv.fd
@@ -610,9 +610,9 @@ LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <9> not available
 (Font)              Font shape `OT1/ptm/b/n' tried instead on input line 91.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7> not available
 (Font)              Font shape `OT1/ptm/b/n' tried instead on input line 91.
- (./article_3.toc)
+ (./Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.toc)
 \tf@toc=\write4
-\openout4 = `article_3.toc'.
+\openout4 = `Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.toc'.
 
 
 
@@ -641,7 +641,7 @@ Package pdftex.def Info: bubble.png  used on input line 177.
 (pdftex.def)             Requested size: 242.4189pt x 184.93594pt.
 
 
-[2 <./calender.png> <./Globe.png> <./bubble.png (PNG copy)>] (./article_3.bbl)
+[2 <./calender.png> <./Globe.png> <./bubble.png (PNG copy)>] (./Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.bbl)
 
 
 
@@ -649,24 +649,24 @@ Package pdftex.def Info: bubble.png  used on input line 177.
 
 ] 
 enddocument/afterlastpage (AED): lastpage setting LastPage.
-(./article_3.aux)
+(./Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
-Package rerunfilecheck Info: File `article_3.out' has not changed.
+Package rerunfilecheck Info: File `Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.out' has not changed.
 (rerunfilecheck)             Checksum: D74A9B78855EEB655349649CA2C0C5A9;825.
  ) 
 Here is how much of TeX's memory you used:
  16872 strings out of 473190
- 271281 string characters out of 5715800
- 736078 words of memory out of 5000000
+ 272296 string characters out of 5715800
+ 736183 words of memory out of 5000000
  39655 multiletter control sequences out of 15000+600000
  602454 words of font info for 228 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 83i,12n,79p,1107b,477s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 83i,12n,79p,1142b,477s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2025/texmf-dist/fonts/type1/urw/helvetic/uhvb8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on article_3.pdf (3 pages, 508950 bytes).
+Output written on Joshua_Mc_Laughlin_Luca_Wolter_concept_paper.pdf (3 pages, 508950 bytes).
 PDF statistics:
  124 PDF objects out of 1000 (max. 8388607)
  93 compressed objects within 1 object stream

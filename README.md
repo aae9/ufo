@@ -15,4 +15,13 @@
 - UFO fliegt beim start hoch
 - Aliens im Hintergrund
 - KP was damit, sieht scheiße verständlich aus [arc-diagram](https://observablehq.com/@d3/arc-diagram)
+- [] alle graphen als 3d plot via button
+- [] florida man, tag + monat und dann kommen die reports
+- 
   
+
+## concept paper
+- [x] use cases
+- [x] begründungen, warum was
+- [x] nuforc, was ist das und warum von da
+- [] 3D plots

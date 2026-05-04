@@ -1,7 +1,7 @@
 // p5x.js — UFO p5.js Sketch
-// Direct-Render-Variante (kein Offscreen-Buffer mehr):
-//  - 3D-Form aus 2D-Primitiven, jedes Element direkt auf die Hauptcanvas
-//  - Snap auf Zellraster → ASCII / Dots / Squares Look ohne Pixel-Readback
+// Inspired by peoniap5 (jesusemans/peoniap5):
+//  - 3D-Form gebaut aus 2D-Primitiven, projiziert in einen Offscreen-Buffer
+//  - Buffer wird als ASCII / Dots / Squares neu rasterisiert
 //  - Phasen-Maschine, Auto-Rotation, Maus-Tilt, Glitch-Overlay, Farbzyklen
 //
 // Steuerung:
@@ -10,6 +10,7 @@
 //  - Taste F: Fullscreen
 //  - Taste M: Render-Modus wechseln
 
+const BUF_SIZE = 760;
 const FOCAL = 440;
 
 // Render-Modi
@@ -80,6 +81,8 @@ let glitchT = 0;
 
 // ASCII-Charset (von dunkel nach hell)
 const ASCII_CHARS = " .:-=+*o#%@";
+
+let buf;
 
 // ---------- Snippets aus dem CSV (links/rechts) ----------
 let csvTable = null;
@@ -279,7 +282,16 @@ function drawSnippets(pal) {
 function setup() {
     createCanvas(windowWidth, windowHeight);
     pixelDensity(1);
-    frameRate(30);
+    buf = createGraphics(BUF_SIZE, BUF_SIZE);
+    buf.pixelDensity(1);
+    buf.noStroke();
+    try {
+        const c2d = buf.drawingContext;
+        if (c2d && c2d.canvas) {
+            c2d.imageSmoothingEnabled = false;
+        }
+    } catch {}
+    frameRate(24);
     textFont("ui-monospace, SFMono-Regular, Menlo, monospace");
     noStroke();
 }
@@ -292,7 +304,7 @@ function draw() {
     const pal = PALETTES[paletteIdx];
     background(pal.bg[0], pal.bg[1], pal.bg[2]);
 
-    tNow += 1 / 30;
+    tNow += 1 / 24;
 
     // Maus-Ziel weich annähern
     mouseRotXT = (mouseY / height - 0.5) * 0.7;
@@ -302,18 +314,20 @@ function draw() {
 
     updatePhase();
 
-    // Render-Modus seltener wechseln, Grid pingponged
+    // Render-Modus seltener wechseln, Grid pingponged (gröbere Zellen → weniger Iterationen)
     if (tNow - lastModeFlip > 1.8) {
         modeIdx = (modeIdx + 1) % MODES.length;
-        gridTarget = random([8, 10, 12, 14]);
+        gridTarget = random([10, 12, 14, 16]);
         lastModeFlip = tNow;
         if (random() < 0.1) glitchT = 0.18;
     }
     grid = lerp(grid, gridTarget, 0.06);
 
-    // UFO direkt auf die Hauptcanvas zeichnen — nur wenn überhaupt sichtbar
+    // UFO in den Buffer zeichnen — nur wenn überhaupt sichtbar
     if (bloom > 0.03) {
-        renderUFODirect(pal);
+        drawUFOToBuffer(pal);
+        buf.loadPixels();
+        renderBufferToScreen(pal);
     }
 
     // Glitch
@@ -382,8 +396,48 @@ function rot3D(x, y, z) {
     return [x2, y2, z2];
 }
 
-// ---------- UFO direkt auf die Hauptcanvas ----------
-function buildUFOElements(pal) {
+// ---------- UFO in Buffer ----------
+// Aktuelles UFO-Zentrum im Buffer (für Bounding-Box-Scan)
+let ufoCenterY = 0;
+
+function drawUFOToBuffer(pal) {
+    buf.background(pal.bg[0], pal.bg[1], pal.bg[2]);
+    buf.push();
+
+    // Vertikalposition: aus dem Bildrand "schwebt" sie rein
+    const yPhase = (1 - bloom) * -340;
+    ufoCenterY = BUF_SIZE / 2 + 30 + yPhase;
+    buf.translate(BUF_SIZE / 2, ufoCenterY);
+
+    drawLightBeam(pal);
+    drawUFOBody(pal);
+    buf.pop();
+}
+
+function drawLightBeam(pal) {
+    const layers = 32;
+    const beamH = 310;
+    const topR = 52;
+    const botR = 130;
+    const a0 = 90 * bloom;
+
+    for (let i = layers - 1; i >= 0; i--) {
+        const lr = i / (layers - 1);
+        const r = lerp(topR, botR, lr);
+        const y = lerp(38, beamH, lr);
+        const a = a0 * (1 - lr * 0.85) * 0.7;
+        buf.noStroke();
+        buf.fill(pal.beam[0], pal.beam[1], pal.beam[2], a);
+        buf.ellipse(0, y, r * 2, r * 0.45);
+    }
+
+    // Bodenglow
+    buf.fill(pal.beam[0], pal.beam[1], pal.beam[2], 50 * bloom);
+    buf.ellipse(0, beamH + 10, botR * 2.4, botR * 0.55);
+}
+
+function drawUFOBody(pal) {
+    // Sammle alle Punkte, sortiere per z, zeichne
     const elements = [];
 
     // ----- Untertasse: oblate Ellipse als Schalen-Punkte -----
@@ -404,11 +458,18 @@ function buildUFOElements(pal) {
             const [rx, ry, rz] = rot3D(x, ringY, z);
             const ps = FOCAL / (FOCAL + rz);
 
+            // Beleuchtung: Punkte weiter "vorne" (negativer z) heller
             const lightT = constrain(map(rz, -saucerR, saucerR, 1, 0.35), 0.35, 1);
-            const top = (v + 1) * 0.5;
+            const top = (v + 1) * 0.5; // 0 oben → 1 unten
+            // Oberseite heller, Unterseite dunkler
             const shade = lerp(1, 0.45, top);
             const col = mixColor(pal.saucerDark, pal.saucer, shade * lightT);
-            elements.push({ rx, ry, rz, ps, intensity: 0.9 * lightT, color: col });
+
+            elements.push({
+                rx, ry, rz, ps,
+                size: 12 * ps,
+                color: [col[0], col[1], col[2], 240],
+            });
         }
     }
 
@@ -419,7 +480,7 @@ function buildUFOElements(pal) {
     const perDomeRing = 24;
 
     for (let ring = 0; ring < domeRings; ring++) {
-        const k = ring / (domeRings - 1);
+        const k = ring / (domeRings - 1); // 0 oben, 1 Basis
         const theta = (1 - k) * HALF_PI;
         const ry0 = -saucerH * 0.3 - sin(theta) * domeH;
         const rRing = cos(theta) * domeR;
@@ -433,11 +494,17 @@ function buildUFOElements(pal) {
 
             const lightT = constrain(map(rz, -domeR, domeR, 1, 0.4), 0.4, 1);
             const col = mixColor(pal.domeEdge, pal.dome, lightT);
-            elements.push({ rx, ry, rz, ps, intensity: 0.8 - k * 0.2, color: col });
+            const alpha = 200 - k * 60;
+
+            elements.push({
+                rx, ry, rz, ps,
+                size: 9.5 * ps,
+                color: [col[0], col[1], col[2], alpha],
+            });
         }
     }
 
-    // ----- Alien-Köpfchen -----
+    // ----- Alien-Köpfchen (kompakter: nur ein paar Punkte für Andeutung) -----
     const headR = 16;
     const headPoints = 12;
     for (let i = 0; i < headPoints; i++) {
@@ -446,7 +513,11 @@ function buildUFOElements(pal) {
         const z = sin(a) * headR;
         const [rx, ry, rz] = rot3D(x, -saucerH * 0.5 - 26, z);
         const ps = FOCAL / (FOCAL + rz);
-        elements.push({ rx, ry, rz, ps, intensity: 0.92, color: pal.alien });
+        elements.push({
+            rx, ry, rz, ps,
+            size: 7 * ps,
+            color: [pal.alien[0], pal.alien[1], pal.alien[2], 230],
+        });
     }
 
     // ----- Bullaugen / Rim-Lichter -----
@@ -460,68 +531,51 @@ function buildUFOElements(pal) {
         const blink = 0.55 + 0.45 * sin(a * 3 + tNow * 4.5);
         const [rx, ry, rz] = rot3D(x, y, z);
         const ps = FOCAL / (FOCAL + rz);
-        elements.push({ rx, ry, rz, ps, intensity: blink, color: pal.lights, isLight: true });
+        elements.push({
+            rx, ry, rz, ps,
+            size: 15 * ps,
+            color: [pal.lights[0], pal.lights[1], pal.lights[2], 255 * blink],
+            isLight: true,
+        });
     }
 
-    // Z-Sort (hinten zuerst → vorne überschreibt)
+    // Z-Sort (hinten zuerst)
     elements.sort((a, b) => b.rz - a.rz);
-    return elements;
-}
 
-function drawBeamDirect(pal, cx, cy) {
-    const ctx = drawingContext;
-    const layers = 18;
-    const beamH = 310;
-    const topR = 52;
-    const botR = 130;
-    const a0 = 90 * bloom;
-
-    ctx.save();
-    ctx.translate(cx, cy);
-
-    // Strahl-Layer
-    let lastA = -1;
-    for (let i = layers - 1; i >= 0; i--) {
-        const lr = i / (layers - 1);
-        const r = lerp(topR, botR, lr);
-        const y = lerp(38, beamH, lr);
-        const aRaw = a0 * (1 - lr * 0.85) * 0.7;
-        const a = Math.round(aRaw / 4) * 4; // quantisieren → fillStyle bleibt stabil
-        if (a !== lastA) {
-            ctx.fillStyle = `rgba(${pal.beam[0]},${pal.beam[1]},${pal.beam[2]},${(a / 255).toFixed(3)})`;
-            lastA = a;
+    // Direkt auf den Buffer-Context (umgeht p5-Wrapper-Overhead)
+    const bctx = buf.drawingContext;
+    let lastFill = "";
+    for (const e of elements) {
+        const c = e.color;
+        const cr = c[0] | 0, cg = c[1] | 0, cb = c[2] | 0;
+        const ca = (c[3] / 255).toFixed(2);
+        const fillStr = `rgba(${cr},${cg},${cb},${ca})`;
+        if (fillStr !== lastFill) {
+            bctx.fillStyle = fillStr;
+            lastFill = fillStr;
         }
-        ctx.beginPath();
-        ctx.ellipse(0, y, r, r * 0.225, 0, 0, Math.PI * 2);
-        ctx.fill();
+        const r = e.size * 0.5;
+        bctx.beginPath();
+        bctx.arc(e.rx * e.ps, e.ry * e.ps, r, 0, Math.PI * 2);
+        bctx.fill();
     }
-
-    // Bodenglow
-    const aGlow = (50 * bloom) / 255;
-    ctx.fillStyle = `rgba(${pal.beam[0]},${pal.beam[1]},${pal.beam[2]},${aGlow.toFixed(3)})`;
-    ctx.beginPath();
-    ctx.ellipse(0, beamH + 10, botR * 1.2, botR * 0.275, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
 }
 
-function renderUFODirect(pal) {
-    const cell = Math.max(6, Math.round(grid));
-    const yPhase = (1 - bloom) * -340;
+function mixColor(a, b, t) {
+    return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+}
+
+// ---------- Buffer → Bildschirm (nativer Canvas-Context, viel schneller) ----------
+function renderBufferToScreen(pal) {
+    const cell = Math.max(4, Math.round(grid));
+    const dx = (width - BUF_SIZE) / 2;
+    const dy = (height - BUF_SIZE) / 2;
     const mx = (mouseX - width / 2) * 0.04;
     const my = (mouseY - height / 2) * 0.04;
-    const cx0 = width / 2 + mx;
-    const cy0 = height / 2 + 30 + yPhase + my;
 
-    // Zuerst der Lichtstrahl (transparent, hinter dem Body)
-    drawBeamDirect(pal, cx0, cy0);
-
-    // Body-Elemente direkt rendern, auf Zellraster gesnappt
-    const elements = buildUFOElements(pal);
     const ctx = drawingContext;
     ctx.save();
-    ctx.translate(cx0, cy0);
+    ctx.translate(dx + mx, dy + my);
 
     const mode = MODES[modeIdx];
     if (mode === "ascii") {
@@ -530,47 +584,59 @@ function renderUFODirect(pal) {
         ctx.textBaseline = "middle";
     }
 
+    const pixels = buf.pixels;
+    const bgR = pal.bg[0] | 0, bgG = pal.bg[1] | 0, bgB = pal.bg[2] | 0;
     const half = cell * 0.5;
     const ASC_LEN = ASCII_CHARS.length;
+
+    // ► Bounding-Box-Scan: nur dort iterieren, wo das UFO + Strahl tatsächlich sind.
+    const cx0 = BUF_SIZE / 2;
+    let xStart = Math.max(0, Math.floor((cx0 - 290) / cell) * cell);
+    let xEnd   = Math.min(BUF_SIZE, Math.ceil((cx0 + 290) / cell) * cell);
+    let yStart = Math.max(0, Math.floor((ufoCenterY - 130) / cell) * cell);
+    let yEnd   = Math.min(BUF_SIZE, Math.ceil((ufoCenterY + 360) / cell) * cell);
+
+    // Farb-Quantisierung: gleiche Farbe → kein neues fillStyle setzen
     let lastFillKey = -1;
 
-    for (const e of elements) {
-        const sx = e.rx * e.ps;
-        const sy = e.ry * e.ps;
-        // Snap auf Zellraster (Mitte der Zelle)
-        const gx = Math.round(sx / cell) * cell;
-        const gy = Math.round(sy / cell) * cell;
+    for (let y = yStart; y < yEnd; y += cell) {
+        const yIdx = y * BUF_SIZE;
+        for (let x = xStart; x < xEnd; x += cell) {
+            const idx = (yIdx + x) << 2; // *4
+            const r = pixels[idx];
+            const g = pixels[idx + 1];
+            const b = pixels[idx + 2];
+            const d = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB);
+            if (d < 12) continue;
 
-        const c = e.color;
-        const r = c[0] | 0, g = c[1] | 0, b = c[2] | 0;
-        const qr = r & 0xF8, qg = g & 0xF8, qb = b & 0xF8;
-        const key = (qr << 16) | (qg << 8) | qb;
-        if (key !== lastFillKey) {
-            ctx.fillStyle = `rgb(${qr},${qg},${qb})`;
-            lastFillKey = key;
-        }
+            const norm = d > 360 ? 1 : d / 360;
 
-        const norm = e.intensity < 0 ? 0 : (e.intensity > 1 ? 1 : e.intensity);
+            // Farbe auf 5-Bit-Buckets reduzieren
+            const qr = r & 0xF8, qg = g & 0xF8, qb = b & 0xF8;
+            const key = (qr << 16) | (qg << 8) | qb;
+            if (key !== lastFillKey) {
+                ctx.fillStyle = `rgb(${qr},${qg},${qb})`;
+                lastFillKey = key;
+            }
 
-        if (mode === "ascii") {
-            const ci = norm >= 1 ? ASC_LEN - 1 : (norm * ASC_LEN) | 0;
-            ctx.fillText(ASCII_CHARS[ci], gx + half, gy + half);
-        } else if (mode === "dots") {
-            const rad = cell * (0.32 + norm * 0.9) * 0.5;
-            ctx.beginPath();
-            ctx.arc(gx + half, gy + half, rad, 0, Math.PI * 2);
-            ctx.fill();
-        } else { // squares
-            const sz = cell * (0.42 + norm * 0.85);
-            ctx.fillRect(gx + half - sz * 0.5, gy + half - sz * 0.5, sz, sz);
+            const cx = x + half;
+            const cy = y + half;
+            if (mode === "ascii") {
+                const ci = norm >= 1 ? ASC_LEN - 1 : (norm * ASC_LEN) | 0;
+                ctx.fillText(ASCII_CHARS[ci], cx, cy);
+            } else if (mode === "dots") {
+                const rad = cell * (0.3 + norm * 0.9) * 0.5;
+                ctx.beginPath();
+                ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+                ctx.fill();
+            } else { // squares
+                const sz = cell * (0.4 + norm * 0.85);
+                ctx.fillRect(cx - sz * 0.5, cy - sz * 0.5, sz, sz);
+            }
         }
     }
 
     ctx.restore();
-}
-
-function mixColor(a, b, t) {
-    return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 }
 
 // ---------- Glitch ----------
