@@ -1,375 +1,12 @@
 // globe.js — 3D-Globus mit UFO-Sichtungs-Heatmap und umkreisenden Aliens.
 // Three.js + WebXR (ARButton) für AR auf unterstützten Geräten,
-// optional AR.js Marker-AR (A-Frame) als zusätzlicher Pfad für iOS / Mac / alte Androids.
+// Webcam-AR als Pseudo-AR-Fallback für Geräte ohne WebXR.
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { ARButton } from "three/addons/webxr/ARButton.js";
 import * as d3 from "https://esm.sh/d3@7";
 import * as topojson from "https://esm.sh/topojson-client@3";
-
-// ---------- AR.js Marker-AR (Lazy-Load, eigenes Overlay) ----------
-const HIRO_MARKER_URL = "https://stemkoski.github.io/AR-Examples/markers/hiro.png";
-
-let arjsAssetsPromise = null;
-function loadArJsAssets() {
-    if (arjsAssetsPromise) return arjsAssetsPromise;
-    arjsAssetsPromise = new Promise((resolve, reject) => {
-        const loadScript = (src) => new Promise((res, rej) => {
-            const s = document.createElement("script");
-            s.src = src;
-            s.onload = () => res();
-            s.onerror = () => rej(new Error(`Failed to load ${src}`));
-            document.head.appendChild(s);
-        });
-        // A-Frame 1.3.0 ist die von AR.js 3.4.5 offiziell empfohlene Version
-        loadScript("https://aframe.io/releases/1.3.0/aframe.min.js")
-            .then(() => loadScript("https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"))
-            .then(() => {
-                registerArJsUfoComponent();
-                resolve();
-            })
-            .catch(reject);
-    });
-    return arjsAssetsPromise;
-}
-
-function registerArJsUfoComponent() {
-    if (!window.AFRAME || window.AFRAME.components["arjs-ufo"]) return;
-    const T = window.AFRAME.THREE;
-
-    window.AFRAME.registerComponent("arjs-ufo", {
-        init() {
-            const group = new T.Group();
-
-            // Untertasse
-            const saucer = new T.Mesh(
-                new T.SphereGeometry(0.5, 32, 18),
-                new T.MeshStandardMaterial({
-                    color: 0xc0c8d4, metalness: 0.75, roughness: 0.28,
-                }),
-            );
-            saucer.scale.set(1, 0.22, 1);
-            group.add(saucer);
-
-            // Saucer-Akzentstreifen
-            const accent = new T.Mesh(
-                new T.TorusGeometry(0.5, 0.03, 12, 64),
-                new T.MeshStandardMaterial({
-                    color: 0x1f2937, metalness: 0.9, roughness: 0.4,
-                }),
-            );
-            accent.rotation.x = Math.PI / 2;
-            group.add(accent);
-
-            // Kuppel
-            const dome = new T.Mesh(
-                new T.SphereGeometry(0.22, 28, 18, 0, Math.PI * 2, 0, Math.PI / 2),
-                new T.MeshStandardMaterial({
-                    color: 0x67e8f9, transparent: true, opacity: 0.85,
-                    emissive: 0x22d3ee, emissiveIntensity: 0.55, roughness: 0.18,
-                }),
-            );
-            dome.position.y = 0.05;
-            group.add(dome);
-
-            // Strahl (Kegel nach unten)
-            const beam = new T.Mesh(
-                new T.ConeGeometry(0.42, 1.1, 32, 1, true),
-                new T.MeshBasicMaterial({
-                    color: 0x22d3ee, transparent: true, opacity: 0.22,
-                    side: T.DoubleSide, depthWrite: false,
-                }),
-            );
-            beam.rotation.x = Math.PI;
-            beam.position.y = -0.55;
-            group.add(beam);
-
-            // Blink-Lichter am Rand
-            this.lights = [];
-            const colors = [0xfbbf24, 0x22d3ee, 0xfb7185];
-            const numLights = 8;
-            for (let i = 0; i < numLights; i++) {
-                const a = (i / numLights) * Math.PI * 2;
-                const lm = new T.Mesh(
-                    new T.SphereGeometry(0.05, 12, 10),
-                    new T.MeshBasicMaterial({ color: colors[i % 3] }),
-                );
-                lm.position.set(Math.cos(a) * 0.48, 0.015, Math.sin(a) * 0.48);
-                this.lights.push(lm);
-                group.add(lm);
-            }
-
-            // Schwebt über Marker
-            group.position.y = 0.6;
-            this.group = group;
-            this.el.setObject3D("ufo", group);
-
-            // Lichter im Marker-Koord-System
-            const ambient = new T.AmbientLight(0xffffff, 0.55);
-            const dir = new T.DirectionalLight(0xffffff, 1.0);
-            dir.position.set(2, 4, 3);
-            this.el.setObject3D("ambient", ambient);
-            this.el.setObject3D("dirLight", dir);
-        },
-        tick(time) {
-            if (!this.group) return;
-            const t = time / 1000;
-            // sanftes Schweben + Spin
-            this.group.position.y = 0.6 + Math.sin(t * 1.2) * 0.08;
-            this.group.rotation.y = t * 0.55;
-            // Blink-Lichter
-            for (let i = 0; i < this.lights.length; i++) {
-                const lm = this.lights[i];
-                lm.material.opacity = 0.55 + 0.45 * Math.sin(t * 4 + i);
-                lm.material.transparent = true;
-            }
-        },
-        remove() {
-            if (this.group) {
-                this.group.traverse(obj => {
-                    if (obj.geometry) obj.geometry.dispose?.();
-                    if (obj.material) obj.material.dispose?.();
-                });
-            }
-        },
-    });
-}
-
-let arjsOverlay = null;
-let arjsOnClose = null;
-
-// AR.js erzeugt sein <video> direkt am <body> mit inline z-index:-2 — wir wollen
-// es im Overlay haben (sichtbar + sauber aufräumbar) und müssen das z-index
-// permanent überschreiben, da AR.js den Style nachzieht.
-function forceVideoStyle(v) {
-    const set = (k, val) => v.style.setProperty(k, val, "important");
-    set("position", "absolute");
-    set("top", "0");
-    set("left", "0");
-    set("width", "100%");
-    set("height", "100%");
-    set("object-fit", "cover");
-    set("z-index", "0");
-    set("display", "block");
-    set("visibility", "visible");
-    set("opacity", "1");
-}
-
-function adoptArJsVideoInto(overlay) {
-    const seen = new WeakSet();
-
-    const adopt = (v) => {
-        if (!v || seen.has(v)) return;
-        if (v.classList.contains("webcam-ar-feed")) return; // unser Webcam-AR
-        if (!overlay.contains(v)) overlay.insertBefore(v, overlay.firstChild);
-        v.classList.add("arjs-video-feed");
-        forceVideoStyle(v);
-        // Falls AR.js den Style später nochmal setzt, beobachten + erneut erzwingen
-        const styleObs = new MutationObserver(() => forceVideoStyle(v));
-        styleObs.observe(v, { attributes: true, attributeFilter: ["style", "class"] });
-        seen.add(v);
-        if (!overlay._styleObservers) overlay._styleObservers = [];
-        overlay._styleObservers.push(styleObs);
-    };
-
-    const scan = () => {
-        // Alle Videos im Document, die zu AR.js gehören könnten
-        document.querySelectorAll("video").forEach(v => {
-            if (overlay.contains(v) && seen.has(v)) return;
-            if (v.classList.contains("webcam-ar-feed")) return;
-            // Heuristik: AR.js-Video hat id="arjs-video" oder srcObject + autoplay + nicht in unserer Webcam-Klasse
-            if (v.id === "arjs-video" || v.srcObject || v.autoplay) {
-                adopt(v);
-            }
-        });
-    };
-
-    scan();
-    const obs = new MutationObserver(() => scan());
-    obs.observe(document.body, { childList: true, subtree: true });
-    return obs;
-}
-
-function purgeArJsArtifacts() {
-    // Alle Streams stoppen, die AR.js erzeugt haben könnte — dabei
-    // unsere eigenen Webcam-AR-Feeds in Ruhe lassen.
-    const videos = document.querySelectorAll("video.arjs-video-feed, #arjs-video, video:not(.webcam-ar-feed)");
-    videos.forEach(v => {
-        // Nur Videos mit Stream stoppen + entfernen, sonst könnten wir
-        // unbeabsichtigt fremde Videos auf der Seite killen.
-        if (v.srcObject) {
-            for (const t of v.srcObject.getTracks()) t.stop();
-            v.srcObject = null;
-            v.remove();
-        }
-    });
-
-    // AR.js / A-Frame können auch Hilfs-DOM am Body lassen
-    document.querySelectorAll("body > .a-canvas, body > .a-loader-title, body > .a-modal").forEach(el => {
-        if (!arjsOverlay || !arjsOverlay.contains(el)) el.remove();
-    });
-}
-
-async function openArJsOverlay({ onClose } = {}) {
-    if (arjsOverlay) return;
-
-    // Loading-Indicator
-    const loading = document.createElement("div");
-    loading.className = "arjs-loading";
-    loading.innerHTML = `<span>Lade AR.js…</span>`;
-    document.body.appendChild(loading);
-
-    try {
-        await loadArJsAssets();
-    } catch (err) {
-        loading.remove();
-        console.error("AR.js Load fehlgeschlagen:", err);
-        alert("AR.js konnte nicht geladen werden. Prüfe deine Verbindung.");
-        return;
-    }
-    loading.remove();
-
-    arjsOnClose = onClose ?? null;
-
-    const overlay = document.createElement("div");
-    overlay.className = "arjs-overlay";
-    // QR-Code, der direkt zum Hiro-Marker-Bild führt (auf Phone öffnen → Phone vor Kamera halten)
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&color=000000&bgcolor=FFFFFF&data=${encodeURIComponent(HIRO_MARKER_URL)}`;
-
-    overlay.innerHTML = `
-        <a-scene
-            class="arjs-scene"
-            embedded
-            vr-mode-ui="enabled: false"
-            renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true;"
-            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; trackingMethod: best;"
-        >
-            <a-marker preset="hiro" smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="2">
-                <a-entity arjs-ufo></a-entity>
-            </a-marker>
-            <a-entity camera></a-entity>
-        </a-scene>
-        <button type="button" class="arjs-close" aria-label="AR schließen">×</button>
-
-        <aside class="arjs-marker-card" aria-label="Hiro-Marker">
-            <p class="arjs-marker-card__label">Marker scannen ↓</p>
-            <img class="arjs-marker-card__img" src="${HIRO_MARKER_URL}" alt="Hiro Marker" />
-            <div class="arjs-marker-card__qr-wrap">
-                <img class="arjs-marker-card__qr" src="${qrUrl}" alt="QR-Code zum Hiro-Marker" />
-                <p class="arjs-marker-card__qr-text">QR mit dem Phone scannen<br/>→ Phone vor Kamera halten</p>
-            </div>
-            <a class="arjs-marker-card__link" href="${HIRO_MARKER_URL}" target="_blank" rel="noopener">Marker im neuen Tab öffnen</a>
-        </aside>
-
-        <div class="arjs-overlay__hud">
-            <p class="arjs-overlay__title">AR.js · Hiro Marker</p>
-            <p class="arjs-overlay__hint">
-                Zeig der Kamera den Marker rechts — das UFO landet darauf
-            </p>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-    arjsOverlay = overlay;
-    document.body.classList.add("arjs-active");
-
-    // Vorab Kamera-Permission anstoßen, damit AR.js gleich Zugriff hat (und
-    // wir sehen, ob die Erlaubnis verweigert wurde).
-    try {
-        const probe = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "environment" } }, audio: false,
-        });
-        // Stream sofort wieder freigeben — AR.js wird gleich seinen eigenen anfordern
-        for (const t of probe.getTracks()) t.stop();
-    } catch (err) {
-        console.error("Kamera-Permission abgelehnt oder nicht verfügbar:", err);
-        const hud = overlay.querySelector(".arjs-overlay__hint");
-        if (hud) {
-            hud.innerHTML = `⚠️ Kamerazugriff verweigert. Erlaube die Kamera in den Browser-Einstellungen und versuch's erneut.`;
-        }
-    }
-
-    // Video von AR.js ins Overlay holen + dort behalten
-    overlay._videoObserver = adoptArJsVideoInto(overlay);
-
-    // Diagnose: nach 6 s ohne Video-Feed → Hinweis
-    overlay._diagTimeout = setTimeout(() => {
-        if (!overlay.querySelector("video.arjs-video-feed")) {
-            console.warn("AR.js: nach 6 s kein Video-Feed adoptiert. Kamera-Permission prüfen.");
-            const hud = overlay.querySelector(".arjs-overlay__hint");
-            if (hud && !hud.dataset.warned) {
-                hud.innerHTML = `⚠️ Keine Kamera erkannt. Erlaube den Browser-Zugriff auf die Kamera und lade die Seite neu.`;
-                hud.dataset.warned = "1";
-            }
-        }
-    }, 6000);
-
-    overlay.querySelector(".arjs-close").addEventListener("click", closeArJsOverlay);
-
-    // Esc / Browser-Back
-    const onKey = (e) => { if (e.key === "Escape") closeArJsOverlay(); };
-    document.addEventListener("keydown", onKey);
-    arjsOverlay._onKey = onKey;
-
-    // Vollbild starten (innerhalb des Click-Kontexts)
-    try {
-        const fn = overlay.requestFullscreen
-                 || overlay.webkitRequestFullscreen
-                 || overlay.mozRequestFullScreen;
-        if (fn) await fn.call(overlay);
-    } catch (err) {
-        console.info("AR.js Fullscreen nicht möglich:", err?.message ?? err);
-    }
-}
-
-function closeArJsOverlay() {
-    if (!arjsOverlay) return;
-
-    // Observer stoppen, sonst rangelt er um neu erscheinende Videos
-    if (arjsOverlay._videoObserver) {
-        arjsOverlay._videoObserver.disconnect();
-        arjsOverlay._videoObserver = null;
-    }
-    if (arjsOverlay._styleObservers) {
-        arjsOverlay._styleObservers.forEach(o => o.disconnect());
-        arjsOverlay._styleObservers = null;
-    }
-    if (arjsOverlay._diagTimeout) {
-        clearTimeout(arjsOverlay._diagTimeout);
-        arjsOverlay._diagTimeout = null;
-    }
-
-    // A-Frame sauber pausieren, damit Render-Loop endet
-    const scene = arjsOverlay.querySelector("a-scene");
-    if (scene) {
-        try { scene.pause?.(); } catch {}
-        try { scene.renderer?.dispose?.(); } catch {}
-    }
-
-    // Esc-Listener weg
-    if (arjsOverlay._onKey) {
-        document.removeEventListener("keydown", arjsOverlay._onKey);
-    }
-
-    // Overlay weg (samt verschobenem AR.js-Video)
-    arjsOverlay.remove();
-    arjsOverlay = null;
-    document.body.classList.remove("arjs-active");
-
-    // Reste am Body sauber wegräumen + alle Tracks stoppen
-    purgeArJsArtifacts();
-
-    // Fullscreen verlassen, falls noch aktiv
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-        const fn = document.exitFullscreen || document.webkitExitFullscreen;
-        if (fn) fn.call(document).catch(() => {});
-    }
-
-    if (arjsOnClose) {
-        try { arjsOnClose(); } catch {}
-        arjsOnClose = null;
-    }
-}
 
 // ---------- Centroids ----------
 // Approximate US state centroids [lat, lng]
@@ -533,20 +170,22 @@ async function loadAggregated() {
     const raw = await d3.csv("nuforc_str.csv");
     const sightings = raw.map(r => parseLocation(r.Location)).filter(Boolean);
 
-    const bucket = new Map(); // key -> { lat, lng, count, label }
+    const bucket = new Map(); // key -> { lat, lng, count, label, country }
     for (const s of sightings) {
-        let key, lat, lng, label;
+        let key, lat, lng, label, country;
         if ((s.country === "USA" || s.country === "United States") && s.state && US_STATES[s.state]) {
             key = `US:${s.state}`;
             [lat, lng] = US_STATES[s.state];
             label = `${s.state}, USA`;
+            country = s.country; // Originalschreibweise behalten ("USA" oder "United States")
         } else if (COUNTRIES[s.country]) {
             key = `C:${s.country}`;
             [lat, lng] = COUNTRIES[s.country];
             label = s.country;
+            country = s.country;
         } else continue;
 
-        if (!bucket.has(key)) bucket.set(key, { lat, lng, count: 0, label });
+        if (!bucket.has(key)) bucket.set(key, { lat, lng, count: 0, label, country });
         bucket.get(key).count++;
     }
     return Array.from(bucket.values());
@@ -687,6 +326,9 @@ async function init() {
         .domain([Math.log(minCount + 1), Math.log(maxCount + 1)])
         .interpolator(d3.interpolateInferno);
 
+    // Sammelt alle anklickbaren Dot-Meshes für den Raycaster
+    const clickableDots = [];
+
     for (const p of data) {
         const heat = (Math.log(p.count + 1) - Math.log(minCount + 1))
                    / (Math.log(maxCount + 1) - Math.log(minCount + 1) || 1);
@@ -699,15 +341,19 @@ async function init() {
         );
         const pos = latLngToVec3(p.lat, p.lng, 1.0 + r * 0.6);
         dot.position.copy(pos);
+        dot.userData = { country: p.country, label: p.label, count: p.count };
         globeGroup.add(dot);
+        clickableDots.push(dot);
 
-        // Glühen
+        // Glühen — auch klickbar mit gleichem Country, vergrößert die Trefferfläche
         const glow = new THREE.Mesh(
             new THREE.SphereGeometry(r * 2.4, 14, 12),
             new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.25, depthWrite: false }),
         );
         glow.position.copy(pos);
+        glow.userData = { country: p.country, label: p.label, count: p.count };
         globeGroup.add(glow);
+        clickableDots.push(glow);
 
         // Senkrechte Spike als Höhen-Indikator für viele Sichtungen
         if (heat > 0.3) {
@@ -758,6 +404,48 @@ async function init() {
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.4;
     controls.enablePan = false;
+
+    // ---------- Klick auf Land → Treemap öffnen, Doppelklick → schließen ----------
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let pointerDownPos = null;
+    const DRAG_THRESHOLD_PX = 6; // bei mehr als 6px Bewegung gilt es als Drag, nicht als Klick
+
+    function setPointerFromEvent(event) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    }
+
+    renderer.domElement.addEventListener("pointerdown", (e) => {
+        pointerDownPos = { x: e.clientX, y: e.clientY };
+    });
+
+    renderer.domElement.addEventListener("pointerup", (e) => {
+        if (!pointerDownPos) return;
+        const dx = e.clientX - pointerDownPos.x;
+        const dy = e.clientY - pointerDownPos.y;
+        pointerDownPos = null;
+        if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) return; // war ein Drag
+
+        setPointerFromEvent(e);
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects(clickableDots, false);
+        for (const hit of hits) {
+            const country = hit.object.userData?.country;
+            if (country && typeof window.__showCountryTreemap === "function") {
+                window.__showCountryTreemap(country);
+                return;
+            }
+        }
+    });
+
+    renderer.domElement.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        if (typeof window.__hideTreemap === "function") {
+            window.__hideTreemap();
+        }
+    });
 
     // AR / Webcam-AR / Fullscreen-Fallback
     const arHost = document.getElementById("ar-button-host");
@@ -929,50 +617,6 @@ async function init() {
         return wrap;
     }
 
-    function makeArJsButton() {
-        const wrap = document.createElement("div");
-        wrap.className = "ar-fallback ar-fallback--arjs";
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "ar-launch-button arjs-launch-button";
-        btn.innerHTML = `<span class="ar-launch-button__icon" aria-hidden="true">🛸</span><span class="ar-launch-button__label">AR.js Marker</span>`;
-        const labelSpan = btn.querySelector(".ar-launch-button__label");
-
-        btn.addEventListener("click", async () => {
-            // Falls Webcam-AR aktiv ist, vorher sauber beenden – sonst fightet der
-            // Stream mit dem AR.js-Webcam-Zugriff.
-            if (webcamActive) stopWebcamAR();
-
-            try {
-                btn.disabled = true;
-                labelSpan.textContent = "Lade…";
-                await openArJsOverlay({
-                    onClose: () => {
-                        btn.classList.remove("is-active");
-                        labelSpan.textContent = "AR.js Marker";
-                    },
-                });
-                btn.classList.add("is-active");
-                labelSpan.textContent = "AR.js läuft";
-            } catch (err) {
-                console.error("AR.js fehlgeschlagen:", err);
-                labelSpan.textContent = "Nicht verfügbar";
-                setTimeout(() => labelSpan.textContent = "AR.js Marker", 2500);
-            } finally {
-                btn.disabled = false;
-            }
-        });
-        wrap.appendChild(btn);
-
-        const note = document.createElement("p");
-        note.className = "ar-hint";
-        note.innerHTML = `Hiro-Marker scannen — UFO erscheint darauf · <a href="${HIRO_MARKER_URL}" target="_blank" rel="noopener">Marker öffnen</a>`;
-        wrap.appendChild(note);
-
-        return wrap;
-    }
-
     async function setupAR() {
         if (!arHost) return;
         let arSupported = false;
@@ -1003,12 +647,6 @@ async function init() {
                 "Vollbild-Modus",
                 "Kein AR und keine Kamera verfügbar – startet Cinematic-Vollbild",
             ));
-        }
-
-        // AR.js Marker: zusätzlicher Pfad — funktioniert überall, wo Kamera verfügbar
-        // (auch iOS Safari, wo WebXR nicht geht). Wird nur gezeigt, wenn Kamera nutzbar.
-        if (cameraAvailable) {
-            arHost.appendChild(makeArJsButton());
         }
     }
     setupAR();

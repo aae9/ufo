@@ -102,11 +102,6 @@
         <h1>UFO Sichtungen</h1>
     </header>
     <main>
-        
-        <p class="subtitle">Hierarchischer Überblick: Land → Staat → Stadt</p>
-        <h2 id="treemap-title" class="chart-title">Alle Länder</h2>
-    
-        <section id="treemap-container" class="chart-container"></section>
 
         <div class="chart-header">
             <h2 id="calendar-title" class="chart-title">Sichtungen über die Zeit pro Tag</h2>
@@ -115,11 +110,21 @@
                 <select id="year-select" class="year-select"></select>
             </div>
         </div>
-        <section id="calendar-container" class="chart-container"></section>
+        <section id="calendar-container" class="chart-container">
+            <button type="button" id="calendar-3d-button" class="calendar-3d-button" aria-label="Jahres-Skyline in 3D anzeigen">
+                <span class="calendar-3d-button__icon" aria-hidden="true">▮▮▮</span>
+                <span class="calendar-3d-button__label">3D-Skyline</span>
+            </button>
+        </section>
         <div class="chart-header">
             <h2 id="bubble-title" class="chart-title">Häufigste Wörter in den Sichtungs-Zusammenfassungen</h2>
         </div>
-        <section id="bubble-container" class="chart-container"></section>
+        <section id="bubble-container" class="chart-container">
+            <button type="button" id="bubble-ar-button" class="bubble-ar-button" aria-label="Bälle in AR mit Schwerkraft">
+                <span class="bubble-ar-button__icon" aria-hidden="true">⦿</span>
+                <span class="bubble-ar-button__label">Bälle in AR</span>
+            </button>
+        </section>
 
         <section class="globe-section" id="globe-section">
             <div class="globe-section__intro">
@@ -130,15 +135,25 @@
                     Aliens und einem Augmented-Reality-Modus für unterstützte Geräte.
                 </p>
             </div>
-            
+
             <div class="globe-stage">
                 <div id="globe-container" class="globe-container">
                     <div id="ar-button-host" class="ar-button-host"></div>
                 </div>
                 <p class="globe-hint">
-                    Ziehen zum Drehen · Scrollen zum Zoomen · AR-Button unten rechts (WebXR)
+                    Ziehen zum Drehen · Scrollen zum Zoomen · <strong>Klick auf ein Land</strong> öffnet die Treemap · <strong>Doppelklick</strong> schließt sie wieder
                 </p>
             </div>
+        </section>
+
+        <section class="globe-treemap-section" id="globe-treemap-section" hidden>
+            <div class="globe-treemap-section__head">
+                <h2 id="treemap-title" class="chart-title">Alle Länder</h2>
+                <p class="globe-treemap-section__hint">
+                    Tiefer reinklicken · <strong>Doppelklick auf den Globus</strong> = zurück
+                </p>
+            </div>
+            <div id="treemap-container" class="chart-container"></div>
         </section>
 
         <div class="cta-row">
@@ -151,7 +166,9 @@
 
     </main>
 
-    <script type="module" src="app.js"></script>
-    <script type="module" src="globe.js?v=8"></script>
+    <script type="module" src="app.js?v=4"></script>
+    <script type="module" src="globe.js?v=10"></script>
+    <script type="module" src="bubble-ar.js?v=3"></script>
+    <script type="module" src="calendar-3d.js?v=3"></script>
 </body>
 </html>

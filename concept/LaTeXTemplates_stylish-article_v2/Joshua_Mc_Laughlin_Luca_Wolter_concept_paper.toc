@@ -5,5 +5,6 @@
 \contentsline {subsection}{\numberline {3.1}Calender Heatmap}{2}{subsection.3.1}%
 \contentsline {subsection}{\numberline {3.2}Geographical Heatmap}{2}{subsection.3.2}%
 \contentsline {subsection}{\numberline {3.3}Bubble Chart}{3}{subsection.3.3}%
-\contentsline {section}{References}{3}{figure.caption.4}%
+\contentsline {subsection}{\numberline {3.4}Florida Man}{3}{subsection.3.4}%
+\contentsline {section}{References}{3}{figure.caption.5}%
 \contentsfinish 

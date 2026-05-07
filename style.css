@@ -710,6 +710,616 @@ main {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+.globe-hint strong {
+    color: #c4b5fd;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+}
+
+.globe-container {
+    cursor: grab;
+}
+
+.globe-container:active {
+    cursor: grabbing;
+}
+
+/* ---------- Treemap, getriggert durch Klick im Globus ---------- */
+.globe-treemap-section {
+    margin: var(--spacing-lg) 0 var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border);
+    animation: globe-treemap-in 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.globe-treemap-section[hidden] {
+    display: none !important;
+}
+
+@keyframes globe-treemap-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.globe-treemap-section__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+    margin: 0 0 0.85rem;
+    padding: 0 0.25rem;
+}
+
+.globe-treemap-section__head .chart-title {
+    margin: 0;
+    flex: 1 1 auto;
+}
+
+.globe-treemap-section__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    flex: 0 1 auto;
+}
+
+.globe-treemap-section__hint strong {
+    color: #c4b5fd;
+    font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .globe-treemap-section__head {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.4rem;
+    }
+    .globe-treemap-section__hint {
+        font-size: 0.7rem;
+        letter-spacing: 0.14em;
+    }
+}
+
+/* ---------- Bubble-AR Button (overlay direkt im Bubble-Chart) ---------- */
+.bubble-ar-button {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(167, 139, 250, 0.55);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 27, 75, 0.85) 100%);
+    color: var(--text-primary);
+    font: 600 0.8rem var(--font-sans);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.4),
+        0 0 18px rgba(167, 139, 250, 0.18);
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.bubble-ar-button:hover:not(:disabled) {
+    border-color: rgba(167, 139, 250, 0.95);
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.28) 0%, rgba(167, 139, 250, 0.38) 100%);
+    box-shadow:
+        0 10px 26px rgba(167, 139, 250, 0.42),
+        0 0 28px rgba(34, 211, 238, 0.3);
+    transform: translateY(-1px);
+}
+
+.bubble-ar-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.bubble-ar-button:disabled {
+    opacity: 0.55;
+    cursor: progress;
+}
+
+.bubble-ar-button__icon {
+    display: inline-grid;
+    place-items: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #67e8f9 0%, #6b8cff 60%, #1e1b4b 100%);
+    color: transparent;
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.55);
+    font-size: 0.6rem;
+}
+
+.bubble-ar-button__label {
+    white-space: nowrap;
+}
+
+/* ---------- Bubble-AR Overlay (Fullscreen-Bühne mit Three.js) ---------- */
+.bubble-ar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background:
+        radial-gradient(ellipse at 30% 20%, rgba(107, 140, 255, 0.2) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 85%, rgba(34, 211, 238, 0.14) 0%, transparent 60%),
+        linear-gradient(180deg, #04060f 0%, #0a0e1a 100%);
+    overflow: hidden;
+    isolation: isolate;
+    animation: bubble-ar-in 0.35s ease-out;
+}
+
+@keyframes bubble-ar-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.bubble-ar-overlay__stage {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
+.bubble-ar-overlay__stage canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.bubble-ar-overlay__webcam {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    z-index: 0;
+}
+
+.bubble-ar-overlay__hud {
+    position: absolute;
+    left: 50%;
+    top: max(env(safe-area-inset-top, 0px), 1rem);
+    transform: translateX(-50%);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.65rem 1.1rem;
+    background: rgba(15, 12, 32, 0.65);
+    border: 1px solid rgba(167, 139, 250, 0.32);
+    border-radius: 14px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    max-width: min(92vw, 520px);
+    text-align: center;
+    color: #f1f5f9;
+    pointer-events: none;
+}
+
+.bubble-ar-overlay__title {
+    margin: 0;
+    font: 600 0.7rem var(--font-sans);
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: #c4b5fd;
+}
+
+.bubble-ar-overlay__hint {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: rgba(241, 245, 249, 0.85);
+}
+
+.bubble-ar-overlay__close {
+    position: absolute;
+    top: max(env(safe-area-inset-top, 0px), 1rem);
+    right: max(env(safe-area-inset-right, 0px), 1rem);
+    z-index: 10002;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: grid;
+    place-items: center;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    padding: 0;
+}
+
+.bubble-ar-overlay__close:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.65);
+    transform: scale(1.06);
+}
+
+.bubble-ar-overlay__ar-host {
+    position: absolute;
+    bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
+    right: max(env(safe-area-inset-right, 0px), 1rem);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.bubble-ar-overlay__xr-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(34, 211, 238, 0.55) !important;
+    background: rgba(15, 23, 42, 0.78) !important;
+    color: #f1f5f9 !important;
+    font: 600 0.8rem var(--font-sans) !important;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 6px 18px rgba(34, 211, 238, 0.22);
+    text-transform: none !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    position: static !important;
+    transform: none !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.bubble-ar-overlay__xr-button:hover:not(:disabled) {
+    border-color: rgba(34, 211, 238, 0.95) !important;
+    box-shadow: 0 10px 26px rgba(34, 211, 238, 0.4);
+}
+
+.bubble-ar-overlay__xr-button:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+.bubble-ar-overlay__no-ar {
+    margin: 0;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+}
+
+body.bubble-ar-active {
+    overflow: hidden;
+}
+
+/* ---------- Calendar-3D Button (im Kalender-Container) ---------- */
+.calendar-3d-button {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(34, 211, 238, 0.55);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(8, 47, 73, 0.85) 100%);
+    color: var(--text-primary);
+    font: 600 0.8rem var(--font-sans);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.4),
+        0 0 18px rgba(34, 211, 238, 0.2);
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.calendar-3d-button:hover:not(:disabled) {
+    border-color: rgba(34, 211, 238, 0.95);
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.22) 0%, rgba(8, 145, 178, 0.42) 100%);
+    box-shadow:
+        0 10px 26px rgba(34, 211, 238, 0.35),
+        0 0 28px rgba(34, 211, 238, 0.45);
+    transform: translateY(-1px);
+}
+
+.calendar-3d-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.calendar-3d-button:disabled {
+    opacity: 0.55;
+    cursor: progress;
+}
+
+.calendar-3d-button__icon {
+    font-size: 0.75rem;
+    letter-spacing: -0.04em;
+    color: #22d3ee;
+    text-shadow: 0 0 8px rgba(34, 211, 238, 0.7);
+}
+
+.calendar-3d-button__label {
+    white-space: nowrap;
+}
+
+/* ---------- Calendar-3D Overlay ---------- */
+.calendar-3d-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background:
+        radial-gradient(ellipse at 30% 15%, rgba(34, 211, 238, 0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 85%, rgba(107, 140, 255, 0.14) 0%, transparent 60%),
+        linear-gradient(180deg, #02050d 0%, #06091a 100%);
+    overflow: hidden;
+    isolation: isolate;
+    animation: calendar-3d-in 0.35s ease-out;
+}
+
+@keyframes calendar-3d-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.calendar-3d-overlay__stage {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
+.calendar-3d-overlay__stage canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.calendar-3d-overlay__hud {
+    position: absolute;
+    left: 50%;
+    top: max(env(safe-area-inset-top, 0px), 1rem);
+    transform: translateX(-50%);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.75rem 1.4rem;
+    background: rgba(8, 12, 26, 0.7);
+    border: 1px solid rgba(34, 211, 238, 0.32);
+    border-radius: 16px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    max-width: min(92vw, 620px);
+    text-align: center;
+    color: #f1f5f9;
+    pointer-events: none;
+}
+
+.calendar-3d-overlay__eyebrow {
+    margin: 0;
+    font: 600 0.68rem var(--font-sans);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #67e8f9;
+}
+
+.calendar-3d-overlay__title {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #f8fafc;
+    font-weight: 500;
+}
+
+.calendar-3d-overlay__legend {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.15rem;
+}
+
+.calendar-3d-overlay__legend-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+.calendar-3d-overlay__legend-bar {
+    width: 110px;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #0a1628 0%, #1e3a5f 30%, #0e7490 65%, #22d3ee 100%);
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
+}
+
+.calendar-3d-overlay__controls {
+    position: absolute;
+    top: max(env(safe-area-inset-top, 0px), 1rem);
+    left: max(env(safe-area-inset-left, 0px), 1.25rem);
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.85rem;
+    background: rgba(8, 12, 26, 0.75);
+    border: 1px solid rgba(34, 211, 238, 0.32);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #f1f5f9;
+    pointer-events: auto;
+}
+
+.calendar-3d-overlay__year-label {
+    font: 600 0.7rem var(--font-sans);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+.calendar-3d-overlay__year-select {
+    background: rgba(15, 23, 42, 0.85);
+    color: #f1f5f9;
+    border: 1px solid rgba(34, 211, 238, 0.45);
+    border-radius: 6px;
+    padding: 0.3rem 0.55rem;
+    font: 600 0.85rem var(--font-sans);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.calendar-3d-overlay__year-select:hover,
+.calendar-3d-overlay__year-select:focus {
+    border-color: rgba(34, 211, 238, 0.95);
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.3);
+}
+
+.calendar-3d-overlay__close {
+    position: absolute;
+    top: max(env(safe-area-inset-top, 0px), 1rem);
+    right: max(env(safe-area-inset-right, 0px), 1rem);
+    z-index: 10002;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: grid;
+    place-items: center;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    padding: 0;
+}
+
+.calendar-3d-overlay__close:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.65);
+    transform: scale(1.06);
+}
+
+.calendar-3d-overlay__hint {
+    position: absolute;
+    bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10001;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(241, 245, 249, 0.78);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    pointer-events: none;
+    white-space: nowrap;
+    max-width: 92vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.calendar-3d-overlay__tooltip {
+    position: fixed;
+    z-index: 10003;
+    padding: 0.5rem 0.8rem;
+    background: rgba(8, 12, 26, 0.92);
+    border: 1px solid rgba(34, 211, 238, 0.4);
+    border-radius: 8px;
+    color: #f1f5f9;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    max-width: 240px;
+}
+
+.calendar-3d-overlay__tooltip.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.calendar-3d-overlay__tooltip strong {
+    color: #67e8f9;
+    font-weight: 600;
+}
+
+body.calendar-3d-active {
+    overflow: hidden;
+}
+
+@media (max-width: 640px) {
+    .calendar-3d-overlay__hud {
+        font-size: 0.78rem;
+        padding: 0.55rem 1rem;
+        max-width: 88vw;
+    }
+    .calendar-3d-overlay__title {
+        font-size: 0.78rem;
+    }
+    .calendar-3d-overlay__legend-bar {
+        width: 80px;
+    }
+    .calendar-3d-overlay__controls {
+        padding: 0.4rem 0.65rem;
+    }
+    .calendar-3d-overlay__hint {
+        font-size: 0.62rem;
+        letter-spacing: 0.1em;
+    }
+}
+
+@media (max-width: 640px) {
+    .bubble-ar-overlay__hud {
+        font-size: 0.72rem;
+        padding: 0.5rem 0.85rem;
+    }
+    .bubble-ar-overlay__title {
+        font-size: 0.62rem;
+        letter-spacing: 0.22em;
+    }
+    .bubble-ar-overlay__hint {
+        font-size: 0.7rem;
+    }
+}
+
 @media (max-width: 640px) {
     .globe-container {
         height: clamp(360px, 70vh, 520px);
@@ -726,328 +1336,3 @@ main {
     }
 }
 
-/* ---------- AR.js Marker-Modus (eigenes Overlay) ---------- */
-.arjs-launch-button {
-    background: linear-gradient(135deg, #1f1f3a 0%, #161628 100%) !important;
-    border-color: rgba(167, 139, 250, 0.45) !important;
-}
-
-.arjs-launch-button:hover {
-    border-color: rgba(167, 139, 250, 0.85) !important;
-    box-shadow: 0 12px 28px rgba(167, 139, 250, 0.32) !important;
-}
-
-.arjs-launch-button.is-active {
-    background: linear-gradient(135deg, #5b21b6 0%, #1e1b4b 100%) !important;
-    border-color: rgba(167, 139, 250, 0.85) !important;
-    color: #fff !important;
-    box-shadow: 0 0 18px rgba(167, 139, 250, 0.45) !important;
-}
-
-.ar-fallback--arjs .ar-hint a {
-    color: #c4b5fd;
-    text-decoration: none;
-    border-bottom: 1px dotted rgba(196, 181, 253, 0.55);
-}
-
-.ar-fallback--arjs .ar-hint a:hover {
-    color: #ddd6fe;
-    border-bottom-color: #ddd6fe;
-}
-
-.arjs-loading {
-    position: fixed;
-    inset: 0;
-    z-index: 9998;
-    display: grid;
-    place-items: center;
-    background: rgba(4, 6, 15, 0.85);
-    backdrop-filter: blur(6px);
-    color: #e8ecf4;
-    font: 600 0.95rem var(--font-sans);
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-}
-
-.arjs-loading::before {
-    content: "";
-    position: absolute;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    border: 2px solid rgba(167, 139, 250, 0.2);
-    border-top-color: #a78bfa;
-    animation: arjs-spin 0.9s linear infinite;
-    transform: translateY(-2.4rem);
-}
-
-@keyframes arjs-spin {
-    to { transform: translateY(-2.4rem) rotate(360deg); }
-}
-
-.arjs-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    /* Opak schwarz — solange das AR.js-Video noch nicht da ist, ist das der Hintergrund.
-       Sobald das Video adoptiert + auf z-index:0 forciert ist, paintet es ÜBER den
-       Overlay-Background (CSS-Painting-Order: bg → child-stacks → ...). */
-    background: #000;
-    overflow: hidden;
-    isolation: isolate;
-}
-
-.arjs-overlay .arjs-scene,
-.arjs-overlay .a-canvas {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 1 !important;
-    background: transparent !important;
-}
-
-/* AR.js-Video (von uns ins Overlay verschoben) — sitzt hinter der 3D-Scene */
-.arjs-overlay > video,
-.arjs-overlay .arjs-video-feed,
-.arjs-overlay #arjs-video {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    z-index: 0 !important;
-    /* AR.js setzt selbst transform auf das Video — nicht überschreiben! */
-}
-
-.arjs-close {
-    position: absolute;
-    top: max(env(safe-area-inset-top, 0px), 1rem);
-    right: max(env(safe-area-inset-right, 0px), 1rem);
-    z-index: 10001;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    background: rgba(0, 0, 0, 0.55);
-    color: #fff;
-    font-size: 1.6rem;
-    line-height: 1;
-    cursor: pointer;
-    backdrop-filter: blur(10px);
-    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-    display: grid;
-    place-items: center;
-    padding: 0;
-}
-
-.arjs-close:hover {
-    background: rgba(255, 255, 255, 0.18);
-    border-color: rgba(255, 255, 255, 0.6);
-    transform: scale(1.05);
-}
-
-.arjs-overlay__hud {
-    position: absolute;
-    left: 50%;
-    bottom: max(env(safe-area-inset-bottom, 0px), 1.25rem);
-    transform: translateX(-50%);
-    z-index: 10001;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.7rem 1.1rem;
-    background: rgba(0, 0, 0, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 16px;
-    backdrop-filter: blur(12px);
-    max-width: min(90vw, 480px);
-    text-align: center;
-    color: #fff;
-    pointer-events: auto;
-}
-
-.arjs-overlay__title {
-    margin: 0;
-    font: 600 0.7rem var(--font-sans);
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.65);
-}
-
-.arjs-overlay__hint {
-    margin: 0;
-    font-size: 0.85rem;
-    line-height: 1.4;
-    color: #f1f5f9;
-}
-
-.arjs-overlay__hint a {
-    color: #c4b5fd;
-    text-decoration: underline;
-}
-
-.arjs-overlay__hint a:hover {
-    color: #ddd6fe;
-}
-
-/* Marker-Vorschau-Karte im AR.js Overlay */
-.arjs-marker-card {
-    position: absolute;
-    right: max(env(safe-area-inset-right, 0px), 1.25rem);
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10001;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 1rem 1rem 0.85rem;
-    width: clamp(200px, 22vw, 240px);
-    background: rgba(15, 12, 32, 0.78);
-    border: 1px solid rgba(167, 139, 250, 0.45);
-    border-radius: 18px;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    box-shadow:
-        0 18px 40px rgba(0, 0, 0, 0.55),
-        0 0 0 1px rgba(167, 139, 250, 0.15) inset,
-        0 0 32px rgba(167, 139, 250, 0.18);
-    color: #f1f5f9;
-    pointer-events: auto;
-    animation: arjs-card-in 0.45s ease-out;
-}
-
-@keyframes arjs-card-in {
-    from {
-        opacity: 0;
-        transform: translateY(-50%) translateX(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(-50%) translateX(0);
-    }
-}
-
-.arjs-marker-card__label {
-    margin: 0;
-    font: 600 0.7rem var(--font-sans);
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: #c4b5fd;
-}
-
-.arjs-marker-card__img {
-    width: 140px;
-    height: 140px;
-    display: block;
-    background: #fff;
-    border-radius: 8px;
-    padding: 6px;
-    box-shadow:
-        0 6px 16px rgba(0, 0, 0, 0.45),
-        0 0 0 1px rgba(255, 255, 255, 0.08);
-}
-
-.arjs-marker-card__qr-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    width: 100%;
-    padding-top: 0.6rem;
-    border-top: 1px dashed rgba(167, 139, 250, 0.3);
-}
-
-.arjs-marker-card__qr {
-    width: 72px;
-    height: 72px;
-    flex-shrink: 0;
-    background: #fff;
-    border-radius: 6px;
-    padding: 4px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
-}
-
-.arjs-marker-card__qr-text {
-    margin: 0;
-    font-size: 0.7rem;
-    line-height: 1.35;
-    color: rgba(241, 245, 249, 0.85);
-    text-align: left;
-}
-
-.arjs-marker-card__link {
-    margin-top: 0.1rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.06em;
-    color: #c4b5fd;
-    text-decoration: none;
-    border-bottom: 1px dotted rgba(196, 181, 253, 0.6);
-    padding-bottom: 1px;
-    transition: color 0.2s ease, border-color 0.2s ease;
-}
-
-.arjs-marker-card__link:hover {
-    color: #ddd6fe;
-    border-bottom-color: rgba(221, 214, 254, 0.9);
-}
-
-/* Auf schmalen Viewports: Karte nach unten verschieben statt rechts */
-@media (max-width: 640px) {
-    .arjs-marker-card {
-        right: 50%;
-        top: auto;
-        bottom: 7.5rem;
-        transform: translateX(50%);
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
-        width: min(92vw, 360px);
-        padding: 0.75rem;
-        gap: 0.5rem;
-    }
-
-    @keyframes arjs-card-in-mobile {
-        from { opacity: 0; transform: translateX(50%) translateY(12px); }
-        to   { opacity: 1; transform: translateX(50%) translateY(0); }
-    }
-
-    .arjs-marker-card {
-        animation: arjs-card-in-mobile 0.4s ease-out;
-    }
-
-    .arjs-marker-card__label {
-        flex-basis: 100%;
-        text-align: center;
-    }
-
-    .arjs-marker-card__img {
-        width: 96px;
-        height: 96px;
-    }
-
-    .arjs-marker-card__qr-wrap {
-        border-top: none;
-        padding-top: 0;
-        width: auto;
-        flex: 1;
-        min-width: 140px;
-    }
-
-    .arjs-marker-card__qr {
-        width: 60px;
-        height: 60px;
-    }
-
-    .arjs-marker-card__link {
-        flex-basis: 100%;
-        text-align: center;
-    }
-}
-
-/* Wenn AR.js läuft, Body-Scroll deaktivieren */
-body.arjs-active {
-    overflow: hidden;
-}

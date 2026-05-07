@@ -1,9 +1,0 @@
-\babel@toc {english}{}\relax 
-\contentsline {section}{\numberline {1}NUFORC}{1}{section.1}%
-\contentsline {section}{\numberline {2}Design UX}{1}{section.2}%
-\contentsline {section}{\numberline {3}Visualization Ideas}{2}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Calender Heatmap}{2}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}Geographical Heatmap}{2}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}Bubble Chart}{2}{subsection.3.3}%
-\contentsfinish 
-\contentsline {section}{References}{3}{figure.caption.3}%

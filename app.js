@@ -427,10 +427,37 @@ function createTreemap(containerId, titleElementId, hierarchyData, options = {})
                 .call(position, currentNode));
     }
 
+    // Sprung direkt zu einem beliebigen Knoten (ohne Animation),
+    // damit der Globe schnell zwischen Ländern hin- und herwechseln kann.
+    function jumpTo(targetNode) {
+        if (!targetNode) return;
+        svg.selectAll("g").interrupt();
+        svg.selectAll("g").remove();
+        currentNode = targetNode;
+        x.domain([targetNode.x0, targetNode.x1]);
+        y.domain([targetNode.y0, targetNode.y1]);
+        group = svg.append("g").call(render, targetNode);
+        updateTitle(targetNode);
+    }
+
+    function zoomToName(name) {
+        if (!name) return false;
+        const target = treemapRoot.children?.find(c => c.data.name === name);
+        if (!target) return false;
+        jumpTo(target);
+        return true;
+    }
+
+    function zoomToRoot() {
+        jumpTo(treemapRoot);
+    }
+
     svg.on("dblclick", zoomOut); // Doppelklick zum zurück gehen
 
     return {
         zoomOut,
+        zoomToName,
+        zoomToRoot,
         getCurrentNode: () => currentNode,
     };
 }
@@ -441,6 +468,43 @@ const treemap = createTreemap(
     "treemap-title",
     hierarchyData
 );
+
+// Bridge zum Globus: Klick auf ein Land öffnet die Treemap, Doppelklick schließt sie.
+const globeTreemapSection = document.getElementById("globe-treemap-section");
+
+// Mehrere mögliche Schreibweisen pro Land aus dem Globus-Code → Treemap-Knoten,
+// weil der Treemap die Rohdaten 1:1 nutzt (z.B. "USA" statt "United States").
+function findCountryNode(name) {
+    if (!name) return null;
+    const direct = hierarchyData.children.find(c => c.name === name);
+    if (direct) return direct.name;
+    // Loose match: case-insensitive
+    const ci = hierarchyData.children.find(
+        c => c.name.toLowerCase() === name.toLowerCase()
+    );
+    return ci ? ci.name : null;
+}
+
+window.__showCountryTreemap = (countryName) => {
+    if (!globeTreemapSection) return;
+    const matched = findCountryNode(countryName);
+    globeTreemapSection.hidden = false;
+    if (matched && treemap.zoomToName(matched)) {
+        // sanftes Scroll, damit die Treemap direkt im Blick ist
+        requestAnimationFrame(() => {
+            globeTreemapSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+    } else {
+        // Kein passender Knoten → wenigstens die Wurzel zeigen
+        treemap.zoomToRoot();
+    }
+};
+
+window.__hideTreemap = () => {
+    if (!globeTreemapSection) return;
+    treemap.zoomToRoot();
+    globeTreemapSection.hidden = true;
+};
 
 
 // Kalender d3 Funktion
@@ -474,6 +538,10 @@ const availableYears = Array.from(
 
 console.log("Verfügbare Jahre:", availableYears);
 
+// Für calendar-3d.js verfügbar machen
+window.__countsByDay = countsByDay;
+window.__availableYears = availableYears;
+
 // function: create Heatmap Calendar
 function createCalendar(containerId, countsByDay, year, options = {}) {
     const cellSize = options.cellSize || 17;
@@ -502,8 +570,8 @@ function createCalendar(containerId, countsByDay, year, options = {}) {
     const width = padLeft + weeksInYear * cellSize + cellSize;
     const height = padTop + 7 * cellSize + 10;
     
-    // svg
-    d3.select(containerId).selectAll("*").remove(); // clear previous content
+    // svg — nur das alte SVG entfernen, damit der 3D-Button im Container bleibt
+    d3.select(containerId).selectAll("svg").remove();
 
     const svg = d3.select(containerId)
         .append("svg")
@@ -737,6 +805,9 @@ function buildWordCounts(rawData, field, topN) {
 
 const wordData = buildWordCounts(rawData, "Summary", 200);
 
+// Für bubble-ar.js zugänglich machen — gleiche Top-Liste, in 3D verwendet
+window.__wordData = wordData;
+
 console.log(`Top 10 Wörter:`, wordData.slice(0, 10));
 console.log(`Häufigstes Wort: "${wordData[0].word}" mit ${wordData[0].count} Vorkommen`);
 console.log(`Seltenstes (Platz 200): "${wordData[199]?.word}" mit ${wordData[199]?.count} Vorkommen`);
@@ -786,7 +857,8 @@ function createBubbleChart(containerId, data, options = {}) {
     }
 
     // ----- BAUSTEIN 2: SVG aufsetzen -----
-    d3.select(containerId).selectAll("*").remove();
+    // Nur das SVG entfernen, damit overlay-Elemente (z.B. AR-Button) erhalten bleiben
+    d3.select(containerId).selectAll("svg").remove();
 
     const svg = d3.select(containerId)
         .append("svg")
