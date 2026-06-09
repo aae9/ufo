@@ -25,6 +25,7 @@ let barsGroup = null;
 let basePlate = null;
 let monthLabelGroup = null;
 let monthWallGroup = null;
+let highlightMarker = null;          // schwebende Kugel + Halo, markiert ausgewählten Tag
 let raycaster = null;
 let pointer = null;
 let highlightMesh = null;
@@ -147,6 +148,36 @@ function setupBaseScene() {
 
     raycaster = new THREE.Raycaster();
     pointer = new THREE.Vector2();
+
+    // Highlight-Marker für ausgewähltes Datum: leuchtende Kugel + Halo
+    highlightMarker = new THREE.Group();
+    const markerHaloMat = new THREE.MeshBasicMaterial({
+        color: 0xfbbf24, transparent: true, opacity: 0.35, depthWrite: false,
+    });
+    const markerHalo = new THREE.Mesh(
+        new THREE.SphereGeometry(0.34, 24, 18), markerHaloMat,
+    );
+    highlightMarker.add(markerHalo);
+    const markerCoreMat = new THREE.MeshStandardMaterial({
+        color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 1.4,
+        metalness: 0.2, roughness: 0.3,
+    });
+    const markerCore = new THREE.Mesh(
+        new THREE.SphereGeometry(0.16, 24, 18), markerCoreMat,
+    );
+    highlightMarker.add(markerCore);
+    // Lichtstrahl (Linie) vom Bar-Top zur Kugel
+    const beamMat = new THREE.MeshBasicMaterial({
+        color: 0xfbbf24, transparent: true, opacity: 0.55, depthWrite: false,
+    });
+    const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.012, 0.012, 1, 8), beamMat,
+    );
+    beam.name = "beam";
+    highlightMarker.add(beam);
+    highlightMarker.userData = { pulsePhase: 0 };
+    highlightMarker.visible = false;
+    scene.add(highlightMarker);
 }
 
 function clearYear() {
@@ -257,7 +288,8 @@ function buildYear(year) {
         const mesh = new THREE.Mesh(sharedGeo, mat);
         mesh.position.set(x, h / 2, z);
         mesh.scale.set(1, h, 1);
-        mesh.userData = { date, count };
+        // originalColor + heat speichern, damit Highlight reversibel ist
+        mesh.userData = { date, count, originalColor: tmpColor.clone(), heat };
         barsGroup.add(mesh);
         bars.push({ mesh, date, count });
     }
@@ -356,7 +388,67 @@ function buildYear(year) {
         const totalSightings = days.reduce((s, d) => s + d.count, 0);
         titleEl.textContent = `${year} · ${totalSightings.toLocaleString("de-DE")} Sichtungen · Max ${maxCount} an einem Tag`;
     }
+
+    // Highlight (falls Datum aus Date-Explorer schon gesetzt) anwenden
+    applyHighlight();
 }
+
+const HIGHLIGHT_COLOR = new THREE.Color(0xfbbf24);
+
+function applyHighlight() {
+    if (!bars || bars.length === 0) return;
+    const targetKey = window.__selectedDateKey || null;
+    let foundBar = null;
+
+    for (const b of bars) {
+        const key = b.date.toISOString().slice(0, 10);
+        const isSelected = key === targetKey;
+        if (isSelected) foundBar = b;
+
+        if (isSelected) {
+            b.mesh.material.color.copy(HIGHLIGHT_COLOR);
+            b.mesh.material.emissive.copy(HIGHLIGHT_COLOR);
+            b.mesh.material.emissiveIntensity = 1.1;
+        } else {
+            const orig = b.mesh.userData.originalColor;
+            const heat = b.mesh.userData.heat || 0;
+            b.mesh.material.color.copy(orig);
+            if (b.count > 0) {
+                b.mesh.material.emissive.copy(orig).multiplyScalar(heat * 0.55);
+                b.mesh.material.emissiveIntensity = 0.6;
+            } else {
+                b.mesh.material.emissive.set(0, 0, 0);
+                b.mesh.material.emissiveIntensity = 0;
+            }
+        }
+    }
+
+    if (!highlightMarker) return;
+    if (foundBar) {
+        const barTop = foundBar.mesh.position.y + foundBar.mesh.scale.y / 2;
+        // Kugel schwebt mindestens 1.0 über der höchsten möglichen Bar (3.3),
+        // damit sie immer über allem sichtbar ist.
+        const sphereY = Math.max(barTop + 0.6, 4.4);
+        highlightMarker.position.set(
+            foundBar.mesh.position.x,
+            sphereY,
+            foundBar.mesh.position.z,
+        );
+        // Beam (Cylinder) vom Bar-Top bis zur Kugel skalieren + positionieren
+        const beam = highlightMarker.getObjectByName("beam");
+        if (beam) {
+            const beamLen = sphereY - barTop;
+            beam.scale.set(1, beamLen, 1);
+            beam.position.set(0, -beamLen / 2, 0); // relativ zur Group am sphereY
+        }
+        highlightMarker.visible = true;
+    } else {
+        highlightMarker.visible = false;
+    }
+}
+
+// Damit der Date-Explorer in app.js den Highlight live aktualisieren kann
+window.__updateCalendar3DSelection = applyHighlight;
 
 // ---------- Renderer ----------
 function setupRenderer(stage) {
@@ -397,6 +489,13 @@ function setupRenderer(stage) {
 
     renderer.setAnimationLoop(() => {
         controls.update();
+        // Highlight-Marker sanft pulsieren lassen, wenn sichtbar
+        if (highlightMarker?.visible) {
+            highlightMarker.userData.pulsePhase = (highlightMarker.userData.pulsePhase || 0) + 0.05;
+            const s = 1 + 0.18 * Math.sin(highlightMarker.userData.pulsePhase);
+            // Halo (Index 0) skaliert; Core (Index 1) bleibt konstant
+            highlightMarker.children[0].scale.set(s, s, s);
+        }
         renderer.render(scene, camera);
     });
 }

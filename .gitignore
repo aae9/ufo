@@ -1,1 +1,6 @@
 nuforc_str.csv
+nuforc_str_cleaned.csv
+concept/
+uapvideos/
+Release_1/
+.DS_Store

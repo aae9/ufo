@@ -1,27 +1,7 @@
-# ufo
+# User test:
+- Florida man: 9. November 1989, eigener Geburtstag, 31.12.1999, 21. Dezember 2012(Maya Kalender endetet)
+  - welche Shape kommt an den Tag am häufigsten vor?
 
-# TODO / Ideen
-## TODO's
-- [] Spike map der Länder. Siehe: [Spike map](https://observablehq.com/@d3/spike-map/2)
-- [x] Bubble chart für Wörter als Wordcloud ersatz. Siehe: [Bubble chart](https://observablehq.com/@d3/bubble-chart/2)
-- [] Marimekko chart für shapes (in Ländern, Städte). Siehe: [Marimekko](https://observablehq.com/@d3/marimekko-chart)
-- [x] Zoomable treemap für Länder [Zoomable treemap](https://observablehq.com/@d3/zoomable-treemap)
-- [x] Kalender für report, seen und posted über Auswahl Menü. Siehe [calender](https://observablehq.com/@d3/calendar/2)
-- [] Clustering suche noch nach link | z.B. (Länder und Formen)
+- In welchem Land wurden die meisten Ufos gesichtet?
 
-## Ideen
-- AR zeichnen von Formen und dann alle Formen, die gezeichnet wurden anzeigen
-- irgendwas mit einem Zeitstrahl
-- UFO fliegt beim start hoch
-- Aliens im Hintergrund
-- KP was damit, sieht scheiße verständlich aus [arc-diagram](https://observablehq.com/@d3/arc-diagram)
-- [] alle graphen als 3d plot via button
-- [] florida man, tag + monat und dann kommen die reports
-- 
-  
-
-## concept paper
-- [x] use cases
-- [x] begründungen, warum was
-- [x] nuforc, was ist das und warum von da
-- [] 3D plots
+- Was ist auf dem Bild von 1969, der NASA zu sehen?

@@ -116,13 +116,67 @@
                 <span class="calendar-3d-button__label">3D-Skyline</span>
             </button>
         </section>
+
+        <section class="date-explorer" aria-labelledby="date-explorer-heading">
+            <div class="date-explorer__intro">
+                <h3 id="date-explorer-heading" class="date-explorer__heading">Persönliches Datum erkunden</h3>
+                <p class="date-explorer__subtitle">
+                    Gib einen Geburtstag oder anderen bedeutsamen Tag ein —
+                    der Tag wird im Kalender markiert und alle Sichtungen darunter aufgelistet.
+                </p>
+            </div>
+            <div class="date-explorer__body">
+                <div class="date-explorer__picker">
+                    <label class="date-explorer__field">
+                        <span class="date-explorer__field-label">Jahr</span>
+                        <input type="text" id="date-year-input" class="date-explorer__input date-explorer__input--year"
+                               inputmode="numeric" maxlength="4" placeholder="JJJJ" autocomplete="off" />
+                    </label>
+                    <span class="date-explorer__sep">–</span>
+                    <label class="date-explorer__field">
+                        <span class="date-explorer__field-label">Monat</span>
+                        <input type="text" id="date-month-input" class="date-explorer__input date-explorer__input--mm"
+                               inputmode="numeric" maxlength="2" placeholder="MM" autocomplete="off" />
+                    </label>
+                    <span class="date-explorer__sep">–</span>
+                    <label class="date-explorer__field">
+                        <span class="date-explorer__field-label">Tag</span>
+                        <input type="text" id="date-day-input" class="date-explorer__input date-explorer__input--mm"
+                               inputmode="numeric" maxlength="2" placeholder="TT" autocomplete="off" />
+                    </label>
+                    <button type="button" id="date-clear-btn" class="date-explorer__clear" hidden>Zurücksetzen</button>
+                </div>
+                <p id="date-explorer-status" class="date-explorer__status" data-kind="info" role="status" aria-live="polite"></p>
+
+                <div class="shape-selector">
+                    <p class="shape-selector__label">Shape-Verteilung · alle dokumentierten Formen mit Anzahl Sichtungen</p>
+                    <div id="shape-chips" class="shape-chips"></div>
+                </div>
+
+                <div id="date-reports" class="date-reports" hidden></div>
+            </div>
+        </section>
         <div class="chart-header">
-            <h2 id="bubble-title" class="chart-title">Häufigste Wörter in den Sichtungs-Zusammenfassungen</h2>
+            <h2 id="timeline-title" class="chart-title">Sichtungen über die Jahre</h2>
+            <div class="chart-controls">
+                <div class="timeline-year-picker">
+                    <label class="timeline-year-picker__field">
+                        <span class="timeline-year-picker__label">Von</span>
+                        <input type="number" id="timeline-year-start" class="timeline-year-picker__input" inputmode="numeric" />
+                    </label>
+                    <label class="timeline-year-picker__field">
+                        <span class="timeline-year-picker__label">Bis</span>
+                        <input type="number" id="timeline-year-end" class="timeline-year-picker__input" inputmode="numeric" />
+                    </label>
+                    <button type="button" id="timeline-year-reset" class="timeline-year-picker__reset">Reset</button>
+                </div>
+                <span id="timeline-stats" class="timeline-stats"></span>
+            </div>
         </div>
-        <section id="bubble-container" class="chart-container">
-            <button type="button" id="bubble-ar-button" class="bubble-ar-button" aria-label="Bälle in AR mit Schwerkraft">
-                <span class="bubble-ar-button__icon" aria-hidden="true">⦿</span>
-                <span class="bubble-ar-button__label">Bälle in AR</span>
+        <section id="timeline-container" class="chart-container">
+            <button type="button" id="timeline-3d-button" class="timeline-3d-button" aria-label="In 3D ansehen">
+                <span class="timeline-3d-button__icon" aria-hidden="true">▰▰</span>
+                <span class="timeline-3d-button__label">3D-Modus</span>
             </button>
         </section>
 
@@ -136,15 +190,74 @@
                 </p>
             </div>
 
+            <!-- Live-KPI-Banner über dem Globus -->
+            <div class="globe-kpi" aria-live="polite">
+                <div class="globe-kpi__item">
+                    <span class="globe-kpi__label">Sichtungen</span>
+                    <strong id="globe-kpi-total" class="globe-kpi__value">0</strong>
+                </div>
+                <div class="globe-kpi__item">
+                    <span class="globe-kpi__label">Länder</span>
+                    <strong id="globe-kpi-countries" class="globe-kpi__value">0</strong>
+                </div>
+                <div class="globe-kpi__item">
+                    <span class="globe-kpi__label">Zeitraum</span>
+                    <strong id="globe-kpi-years" class="globe-kpi__value">—</strong>
+                </div>
+                <div class="globe-kpi__item">
+                    <span class="globe-kpi__label">Shape-Filter</span>
+                    <strong id="globe-kpi-shape" class="globe-kpi__value">Alle</strong>
+                </div>
+            </div>
+
             <div class="globe-stage">
                 <div id="globe-container" class="globe-container">
                     <div id="ar-button-host" class="ar-button-host"></div>
                 </div>
+
+                <!-- Side-Panel mit Detail-Stats für angeklicktes Land -->
+                <aside id="globe-side-panel" class="globe-side-panel" aria-hidden="true">
+                    <button type="button" id="globe-side-panel-close" class="globe-side-panel__close" aria-label="Schließen">×</button>
+                    <h3 class="globe-side-panel__title">—</h3>
+                    <p class="globe-side-panel__sub">—</p>
+                    <div class="globe-side-panel__section">
+                        <p class="globe-side-panel__section-title">Jahres-Verteilung</p>
+                        <div class="globe-side-panel__years"></div>
+                    </div>
+                    <div class="globe-side-panel__section">
+                        <p class="globe-side-panel__section-title">Top-Shapes</p>
+                        <div class="globe-side-panel__shapes"></div>
+                    </div>
+                    <button type="button" class="globe-side-panel__treemap-btn">Im Treemap erkunden →</button>
+                </aside>
+
                 <p class="globe-hint">
-                    Ziehen zum Drehen · Scrollen zum Zoomen · <strong>Klick auf ein Land</strong> öffnet die Treemap · <strong>Doppelklick</strong> schließt sie wieder
+                    Hover für Detail · <strong>Klick</strong> auf ein Land öffnet Stats-Panel · <strong>Doppelklick</strong> schließt die Treemap
                 </p>
             </div>
+
+            <!-- Zeit-Slider + Play unter dem Globus -->
+            <div class="globe-controls">
+                <div class="globe-time-slider">
+                    <div class="globe-time-slider__head">
+                        <span class="globe-time-slider__label">Zeitraum</span>
+                        <span id="globe-time-display" class="globe-time-slider__display">—</span>
+                        <button type="button" id="globe-play-btn" class="globe-play-btn" aria-label="Wiedergabe">▶</button>
+                    </div>
+                    <div class="globe-time-slider__track">
+                        <input type="range" id="globe-time-start" class="globe-time-slider__input globe-time-slider__input--start" />
+                        <input type="range" id="globe-time-end" class="globe-time-slider__input globe-time-slider__input--end" />
+                    </div>
+                </div>
+                <button type="button" id="globe-flight-btn" class="globe-flight-btn" aria-pressed="false">
+                    <span class="globe-flight-btn__badge">BETA</span>
+                    <span class="globe-flight-btn__label">Flugbahnen</span>
+                </button>
+            </div>
         </section>
+
+        <!-- Floating Hover-Tooltip für den Globus -->
+        <div id="globe-tooltip" class="globe-tooltip"></div>
 
         <section class="globe-treemap-section" id="globe-treemap-section" hidden>
             <div class="globe-treemap-section__head">
@@ -156,19 +269,19 @@
             <div id="treemap-container" class="chart-container"></div>
         </section>
 
-        <div class="cta-row">
-            <a class="cta-button" href="second_word.html">
-                <span class="cta-button__label">Second World betreten</span>
+        <div class="cta-row cta-row--classified">
+            <a class="cta-button cta-button--classified" href="uap_files.html">
+                <span class="cta-button__label">Das Verbotene · UAP-Akten öffnen</span>
                 <span class="cta-button__arrow" aria-hidden="true">→</span>
             </a>
-            <p class="cta-hint">Eine generative UFO-Transmission im p5.js-Stil</p>
+            <p class="cta-hint">Department of War · Declassified Files · war.gov/ufo</p>
         </div>
 
     </main>
 
-    <script type="module" src="app.js?v=4"></script>
-    <script type="module" src="globe.js?v=10"></script>
-    <script type="module" src="bubble-ar.js?v=3"></script>
-    <script type="module" src="calendar-3d.js?v=3"></script>
+    <script type="module" src="app.js?v=15"></script>
+    <script type="module" src="globe.js?v=11"></script>
+    <script type="module" src="calendar-3d.js?v=4"></script>
+    <script type="module" src="timeline-3d.js?v=4"></script>
 </body>
 </html>

@@ -168,16 +168,21 @@ function buildCountryFills(featureCollection, radius = 1.0015, color = 0x1a2845)
 // ---------- Datenladen + Aggregation ----------
 async function loadAggregated() {
     const raw = await d3.csv("nuforc_str.csv");
-    const sightings = raw.map(r => parseLocation(r.Location)).filter(Boolean);
 
-    const bucket = new Map(); // key -> { lat, lng, count, label, country }
-    for (const s of sightings) {
+    const bucket = new Map();      // key -> location-Object
+    const dayLocs = new Map();     // YYYY-MM-DD -> Set<locKey>
+    let yearMin = Infinity, yearMax = -Infinity;
+
+    for (const r of raw) {
+        const s = parseLocation(r.Location);
+        if (!s) continue;
+
         let key, lat, lng, label, country;
         if ((s.country === "USA" || s.country === "United States") && s.state && US_STATES[s.state]) {
             key = `US:${s.state}`;
             [lat, lng] = US_STATES[s.state];
             label = `${s.state}, USA`;
-            country = s.country; // Originalschreibweise behalten ("USA" oder "United States")
+            country = s.country;
         } else if (COUNTRIES[s.country]) {
             key = `C:${s.country}`;
             [lat, lng] = COUNTRIES[s.country];
@@ -185,10 +190,74 @@ async function loadAggregated() {
             country = s.country;
         } else continue;
 
-        if (!bucket.has(key)) bucket.set(key, { lat, lng, count: 0, label, country });
-        bucket.get(key).count++;
+        // Datum + Shape extrahieren (für Filter & Flugbahnen)
+        const dm = r.Occurred?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const year = dm ? parseInt(dm[1], 10) : null;
+        const dayKey = dm ? `${dm[1]}-${dm[2]}-${dm[3]}` : null;
+        if (year) {
+            if (year < yearMin) yearMin = year;
+            if (year > yearMax) yearMax = year;
+        }
+        const shape = (r.Shape || "").trim().toLowerCase() || null;
+
+        if (!bucket.has(key)) {
+            bucket.set(key, {
+                key, lat, lng, label, country,
+                count: 0,
+                byYear: new Map(),         // year → count
+                byShape: new Map(),        // shape → count
+                byYearShape: new Map(),    // year → Map<shape, count>
+            });
+        }
+        const b = bucket.get(key);
+        b.count++;
+        if (year) b.byYear.set(year, (b.byYear.get(year) || 0) + 1);
+        if (shape) b.byShape.set(shape, (b.byShape.get(shape) || 0) + 1);
+        if (year && shape) {
+            if (!b.byYearShape.has(year)) b.byYearShape.set(year, new Map());
+            const ys = b.byYearShape.get(year);
+            ys.set(shape, (ys.get(shape) || 0) + 1);
+        }
+
+        if (dayKey) {
+            if (!dayLocs.has(dayKey)) dayLocs.set(dayKey, new Set());
+            dayLocs.get(dayKey).add(key);
+        }
     }
-    return Array.from(bucket.values());
+
+    const locations = Array.from(bucket.values());
+    const locByKey = new Map(locations.map(l => [l.key, l]));
+
+    // Top-Tage mit den meisten unterschiedlichen Sichtungs-Orten → Flugbahn-Paare
+    const topDays = [...dayLocs.entries()]
+        .filter(([, s]) => s.size >= 2)
+        .sort((a, b) => b[1].size - a[1].size)
+        .slice(0, 40);
+
+    const flightPairs = [];
+    for (const [dayKey, keySet] of topDays) {
+        const keys = [...keySet];
+        const maxPairs = Math.min(6, keys.length);
+        const used = new Set();
+        for (let i = 0; i < maxPairs; i++) {
+            const a = keys[Math.floor(Math.random() * keys.length)];
+            let b = keys[Math.floor(Math.random() * keys.length)];
+            let tries = 0;
+            while ((b === a || used.has(`${a}|${b}`) || used.has(`${b}|${a}`)) && tries++ < 8) {
+                b = keys[Math.floor(Math.random() * keys.length)];
+            }
+            if (a !== b && !used.has(`${a}|${b}`)) {
+                used.add(`${a}|${b}`);
+                const A = locByKey.get(a), B = locByKey.get(b);
+                if (A && B) flightPairs.push({ dayKey, A, B });
+            }
+        }
+    }
+
+    if (!Number.isFinite(yearMin)) yearMin = 1947;
+    if (!Number.isFinite(yearMax)) yearMax = 2024;
+
+    return { locations, yearMin, yearMax, flightPairs };
 }
 
 // ---------- UFO-Mesh ----------
@@ -244,13 +313,14 @@ async function init() {
     const container = document.getElementById("globe-container");
     if (!container) return;
 
-    const [data, countries] = await Promise.all([
+    const [aggregated, countries] = await Promise.all([
         loadAggregated(),
         loadCountries().catch(err => {
             console.warn("Countries TopoJSON konnte nicht geladen werden:", err);
             return null;
         }),
     ]);
+    const { locations: data, yearMin: dataYearMin, yearMax: dataYearMax, flightPairs } = aggregated;
 
     const scene = new THREE.Scene();
     scene.background = null;
@@ -319,54 +389,210 @@ async function init() {
     );
     globeGroup.add(atmo);
 
-    // Heatmap-Punkte
-    const maxCount = d3.max(data, d => d.count) || 1;
-    const minCount = d3.min(data, d => d.count) || 1;
-    const colorScale = d3.scaleSequential()
-        .domain([Math.log(minCount + 1), Math.log(maxCount + 1)])
-        .interpolator(d3.interpolateInferno);
+    // ---------- Heatmap-Dots mit Update-Hooks ----------
+    // Geteilte Geometrien für Performance — Dots werden über scale + color animiert.
+    const sharedDotGeo = new THREE.SphereGeometry(1, 14, 12);
+    const sharedGlowGeo = new THREE.SphereGeometry(1, 14, 12);
 
-    // Sammelt alle anklickbaren Dot-Meshes für den Raycaster
-    const clickableDots = [];
+    const colorScaleFull = d3.scaleSequential().interpolator(d3.interpolateInferno);
+    const clickableDots = [];   // alle dot/glow-Meshes für Raycasting
+    const dotEntries = [];      // {loc, dot, glow, spike, baseRadius (visuell)}
 
     for (const p of data) {
-        const heat = (Math.log(p.count + 1) - Math.log(minCount + 1))
-                   / (Math.log(maxCount + 1) - Math.log(minCount + 1) || 1);
-        const r = 0.012 + heat * 0.04;
-        const c = new THREE.Color(colorScale(Math.log(p.count + 1)));
-
-        const dot = new THREE.Mesh(
-            new THREE.SphereGeometry(r, 14, 12),
-            new THREE.MeshBasicMaterial({ color: c }),
-        );
-        const pos = latLngToVec3(p.lat, p.lng, 1.0 + r * 0.6);
+        const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const dot = new THREE.Mesh(sharedDotGeo, dotMat);
+        const pos = latLngToVec3(p.lat, p.lng, 1.0);
         dot.position.copy(pos);
-        dot.userData = { country: p.country, label: p.label, count: p.count };
+        dot.userData = { locKey: p.key, country: p.country, label: p.label };
         globeGroup.add(dot);
         clickableDots.push(dot);
 
-        // Glühen — auch klickbar mit gleichem Country, vergrößert die Trefferfläche
-        const glow = new THREE.Mesh(
-            new THREE.SphereGeometry(r * 2.4, 14, 12),
-            new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.25, depthWrite: false }),
-        );
+        const glowMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 0.25, depthWrite: false,
+        });
+        const glow = new THREE.Mesh(sharedGlowGeo, glowMat);
         glow.position.copy(pos);
-        glow.userData = { country: p.country, label: p.label, count: p.count };
+        glow.userData = { locKey: p.key, country: p.country, label: p.label };
         globeGroup.add(glow);
         clickableDots.push(glow);
 
-        // Senkrechte Spike als Höhen-Indikator für viele Sichtungen
-        if (heat > 0.3) {
-            const len = 0.05 + heat * 0.35;
-            const top = latLngToVec3(p.lat, p.lng, 1.0 + len);
-            const points = [pos.clone(), top];
-            const line = new THREE.Line(
-                new THREE.BufferGeometry().setFromPoints(points),
-                new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.7 }),
-            );
-            globeGroup.add(line);
+        // Spike: nur als Linie auf radial outward — wird per scale.y verändert
+        const spikeMat = new THREE.LineBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 0.7,
+        });
+        const spikeGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0),
+            pos.clone().multiplyScalar(0.4),  // 0.4-Einheiten outward in lokalem Frame, später skaliert
+        ]);
+        // Wir verschieben die Spike-Linie ins globeGroup und nutzen position+lookAt
+        const spike = new THREE.Line(spikeGeo, spikeMat);
+        spike.position.copy(pos);
+        // Lokale Y-Achse zeigt radial nach außen → lookAt(2*pos) tut's:
+        const upward = pos.clone().multiplyScalar(2);
+        spike.lookAt(upward);
+        globeGroup.add(spike);
+
+        dotEntries.push({ loc: p, dot, glow, spike, dotMat, glowMat, spikeMat, pos });
+    }
+
+    // ---------- Filter + Update-Logik ----------
+    // currentFilter: yearMin/yearMax (inkl.), shape (lowercase) oder null
+    let currentFilter = { yearMin: dataYearMin, yearMax: dataYearMax, shape: null };
+
+    function getFilteredCount(loc, filter) {
+        const { yearMin, yearMax, shape } = filter;
+        // Schnellpfad: keine Filter → totalCount
+        if (yearMin === dataYearMin && yearMax === dataYearMax && !shape) {
+            return loc.count;
+        }
+        let sum = 0;
+        if (shape) {
+            const sLower = shape.toLowerCase();
+            // Iteriere Jahre im Range
+            for (let y = yearMin; y <= yearMax; y++) {
+                const ys = loc.byYearShape.get(y);
+                if (!ys) continue;
+                sum += ys.get(sLower) || 0;
+            }
+        } else {
+            for (let y = yearMin; y <= yearMax; y++) {
+                sum += loc.byYear.get(y) || 0;
+            }
+        }
+        return sum;
+    }
+
+    function updateGlobeView(filterUpdate = {}) {
+        currentFilter = { ...currentFilter, ...filterUpdate };
+        // Erst max für aktuelle Filterung ermitteln, damit die Farb-/Größen-Skalen
+        // sich an die sichtbare Verteilung anpassen.
+        const visible = [];
+        let maxC = 0;
+        for (const e of dotEntries) {
+            const c = getFilteredCount(e.loc, currentFilter);
+            e.currentCount = c;
+            if (c > maxC) maxC = c;
+            if (c > 0) visible.push(e);
+        }
+        const logMax = Math.log(maxC + 1);
+        colorScaleFull.domain([0, logMax || 1]);
+
+        for (const e of dotEntries) {
+            if (e.currentCount <= 0) {
+                e.dot.visible = false;
+                e.glow.visible = false;
+                e.spike.visible = false;
+                continue;
+            }
+            const heat = logMax > 0 ? Math.log(e.currentCount + 1) / logMax : 0;
+            const r = 0.012 + heat * 0.04;
+            const color = new THREE.Color(colorScaleFull(Math.log(e.currentCount + 1)));
+
+            e.dot.visible = true;
+            e.dot.scale.setScalar(r);
+            e.dot.position.copy(e.pos).multiplyScalar(1.0 + r * 0.6);
+            e.dotMat.color.copy(color);
+
+            e.glow.visible = true;
+            e.glow.scale.setScalar(r * 2.4);
+            e.glow.position.copy(e.dot.position);
+            e.glowMat.color.copy(color);
+
+            if (heat > 0.3) {
+                const len = 0.05 + heat * 0.35;
+                e.spike.visible = true;
+                e.spike.scale.set(1, 1, len / 0.4);
+                e.spike.position.copy(e.pos);
+                e.spikeMat.color.copy(color);
+            } else {
+                e.spike.visible = false;
+            }
+        }
+
+        updateKPIs(visible, maxC);
+        // Flugbahnen, falls aktiv, neu zeichnen (Filter beeinflusst sichtbare Pairs)
+        if (flightPathsOn) rebuildFlightPaths();
+    }
+
+    // ---------- KPI-Banner über dem Globus ----------
+    function updateKPIs(visibleEntries, maxC) {
+        const totalEl = document.getElementById("globe-kpi-total");
+        const countriesEl = document.getElementById("globe-kpi-countries");
+        const yearsEl = document.getElementById("globe-kpi-years");
+        const shapeEl = document.getElementById("globe-kpi-shape");
+        if (!totalEl) return;
+
+        const total = visibleEntries.reduce((s, e) => s + e.currentCount, 0);
+        const countries = new Set(visibleEntries.map(e => e.loc.country)).size;
+        totalEl.textContent = total.toLocaleString("de-DE");
+        countriesEl.textContent = countries.toString();
+        yearsEl.textContent = `${currentFilter.yearMin}–${currentFilter.yearMax}`;
+        if (shapeEl) {
+            shapeEl.textContent = currentFilter.shape
+                ? currentFilter.shape.charAt(0).toUpperCase() + currentFilter.shape.slice(1)
+                : "Alle";
         }
     }
+
+    // ---------- Flugbahnen (Beta) ----------
+    const flightGroup = new THREE.Group();
+    globeGroup.add(flightGroup);
+    let flightPathsOn = false;
+    const ARC_RAISE = 0.45; // wie hoch über Globusoberfläche
+
+    function buildArcPoints(A, B, steps = 60) {
+        const v1 = latLngToVec3(A.lat, A.lng, 1.01);
+        const v2 = latLngToVec3(B.lat, B.lng, 1.01);
+        // Mittelpunkt nach oben anheben, je nach Distanz
+        const dist = v1.distanceTo(v2);
+        const mid = v1.clone().add(v2).multiplyScalar(0.5).normalize().multiplyScalar(1.0 + ARC_RAISE * Math.min(1, dist * 0.7));
+        const curve = new THREE.QuadraticBezierCurve3(v1, mid, v2);
+        return curve.getPoints(steps);
+    }
+
+    function rebuildFlightPaths() {
+        // Clear
+        while (flightGroup.children.length) {
+            const m = flightGroup.children.pop();
+            m.geometry?.dispose?.();
+            m.material?.dispose?.();
+        }
+        if (!flightPathsOn) return;
+
+        for (const pair of flightPairs) {
+            // Filter: beide Locations müssen aktuell sichtbar sein (count > 0)
+            const aEntry = dotEntries.find(e => e.loc.key === pair.A.key);
+            const bEntry = dotEntries.find(e => e.loc.key === pair.B.key);
+            if (!aEntry || !bEntry) continue;
+            if ((aEntry.currentCount || 0) === 0 || (bEntry.currentCount || 0) === 0) continue;
+
+            const pts = buildArcPoints(pair.A, pair.B, 48);
+            const geo = new THREE.BufferGeometry().setFromPoints(pts);
+            const mat = new THREE.LineBasicMaterial({
+                color: 0xfb7185, transparent: true, opacity: 0.55, depthWrite: false,
+            });
+            const line = new THREE.Line(geo, mat);
+            line.userData = { phase: Math.random() * Math.PI * 2 };
+            flightGroup.add(line);
+        }
+    }
+
+    // Initial-Render mit Defaults
+    updateGlobeView();
+
+    // ---------- Globale API für Linked-Views ----------
+    window.__globeFilter = (yearMin, yearMax, shape) => {
+        updateGlobeView({
+            yearMin: yearMin ?? currentFilter.yearMin,
+            yearMax: yearMax ?? currentFilter.yearMax,
+            shape: shape === undefined ? currentFilter.shape : shape,
+        });
+    };
+    window.__globeYearRange = { min: dataYearMin, max: dataYearMax };
+    window.__globeSetFlightPaths = (on) => {
+        flightPathsOn = !!on;
+        rebuildFlightPaths();
+    };
 
     // Aliens (UFO-Schwarm) — kreisen um Globus
     const aliens = [];
@@ -432,12 +658,152 @@ async function init() {
         raycaster.setFromCamera(pointer, camera);
         const hits = raycaster.intersectObjects(clickableDots, false);
         for (const hit of hits) {
-            const country = hit.object.userData?.country;
-            if (country && typeof window.__showCountryTreemap === "function") {
-                window.__showCountryTreemap(country);
+            const locKey = hit.object.userData?.locKey;
+            if (!locKey) continue;
+            const entry = dotEntries.find(e => e.loc.key === locKey);
+            if (entry) {
+                showSidePanel(entry);
                 return;
             }
         }
+    });
+
+    // ---------- Hover-Tooltip ----------
+    const tooltipEl = document.getElementById("globe-tooltip");
+    let lastHoverKey = null;
+    renderer.domElement.addEventListener("pointermove", (e) => {
+        if (!tooltipEl) return;
+        setPointerFromEvent(e);
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects(clickableDots, false);
+        if (hits.length === 0) {
+            tooltipEl.classList.remove("is-visible");
+            lastHoverKey = null;
+            return;
+        }
+        const locKey = hits[0].object.userData?.locKey;
+        if (!locKey) {
+            tooltipEl.classList.remove("is-visible");
+            return;
+        }
+        const entry = dotEntries.find(e => e.loc.key === locKey);
+        if (!entry || entry.currentCount === 0) {
+            tooltipEl.classList.remove("is-visible");
+            return;
+        }
+
+        if (locKey !== lastHoverKey) {
+            // Top-3 Shapes berechnen (filter-aware)
+            const shapeMap = new Map();
+            for (let y = currentFilter.yearMin; y <= currentFilter.yearMax; y++) {
+                const ys = entry.loc.byYearShape.get(y);
+                if (!ys) continue;
+                for (const [sh, c] of ys) {
+                    if (currentFilter.shape && sh !== currentFilter.shape) continue;
+                    shapeMap.set(sh, (shapeMap.get(sh) || 0) + c);
+                }
+            }
+            const top3 = [...shapeMap.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([sh, c]) => `<span class="globe-tooltip__chip">${sh.charAt(0).toUpperCase() + sh.slice(1)} <em>${c.toLocaleString("de-DE")}</em></span>`)
+                .join(" ");
+            tooltipEl.innerHTML = `
+                <p class="globe-tooltip__label">${escapeHtmlSimple(entry.loc.label)}</p>
+                <p class="globe-tooltip__count"><strong>${entry.currentCount.toLocaleString("de-DE")}</strong> Sichtungen</p>
+                ${top3 ? `<div class="globe-tooltip__shapes">${top3}</div>` : ""}
+            `;
+            lastHoverKey = locKey;
+        }
+        // Position folgt Maus
+        tooltipEl.style.left = (e.clientX + 14) + "px";
+        tooltipEl.style.top = (e.clientY + 14) + "px";
+        tooltipEl.classList.add("is-visible");
+    });
+    renderer.domElement.addEventListener("pointerleave", () => {
+        tooltipEl?.classList.remove("is-visible");
+        lastHoverKey = null;
+    });
+
+    function escapeHtmlSimple(s) {
+        const d = document.createElement("div");
+        d.textContent = s ?? "";
+        return d.innerHTML;
+    }
+
+    // ---------- Side-Panel mit Detail-Stats ----------
+    function showSidePanel(entry) {
+        const panel = document.getElementById("globe-side-panel");
+        if (!panel) return;
+        const titleEl = panel.querySelector(".globe-side-panel__title");
+        const subEl = panel.querySelector(".globe-side-panel__sub");
+        const yearsEl = panel.querySelector(".globe-side-panel__years");
+        const shapesEl = panel.querySelector(".globe-side-panel__shapes");
+        const treemapBtn = panel.querySelector(".globe-side-panel__treemap-btn");
+
+        titleEl.textContent = entry.loc.label;
+        subEl.innerHTML = `<strong>${entry.currentCount.toLocaleString("de-DE")}</strong> Sichtungen ` +
+            `· gesamt <strong>${entry.loc.count.toLocaleString("de-DE")}</strong>`;
+
+        // Jahres-Sparkline (canvas)
+        const yearList = [...entry.loc.byYear.entries()].sort((a, b) => a[0] - b[0]);
+        if (yearList.length > 0) {
+            const c = document.createElement("canvas");
+            c.width = 280; c.height = 60;
+            const ctx = c.getContext("2d");
+            const xmin = yearList[0][0], xmax = yearList[yearList.length - 1][0];
+            const ymax = Math.max(...yearList.map(([, v]) => v));
+            ctx.strokeStyle = "#22d3ee";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            yearList.forEach(([y, v], i) => {
+                const px = (y - xmin) / (xmax - xmin || 1) * (c.width - 4) + 2;
+                const py = c.height - 4 - (v / ymax) * (c.height - 8);
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+            // Fläche darunter
+            ctx.lineTo(c.width - 2, c.height - 2);
+            ctx.lineTo(2, c.height - 2);
+            ctx.closePath();
+            ctx.fillStyle = "rgba(34, 211, 238, 0.18)";
+            ctx.fill();
+            yearsEl.innerHTML = "";
+            yearsEl.appendChild(c);
+            const label = document.createElement("p");
+            label.className = "globe-side-panel__years-label";
+            label.textContent = `${xmin} – ${xmax}`;
+            yearsEl.appendChild(label);
+        } else {
+            yearsEl.innerHTML = `<p class="globe-side-panel__empty">Keine datierten Sichtungen</p>`;
+        }
+
+        // Top-Shapes
+        const topShapes = [...entry.loc.byShape.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8);
+        shapesEl.innerHTML = topShapes.length === 0
+            ? `<p class="globe-side-panel__empty">Keine Shape-Angabe</p>`
+            : topShapes.map(([sh, c]) =>
+                `<div class="globe-side-panel__shape-row">
+                    <span class="globe-side-panel__shape-name">${escapeHtmlSimple(sh.charAt(0).toUpperCase() + sh.slice(1))}</span>
+                    <span class="globe-side-panel__shape-bar" style="width: ${Math.max(4, c / topShapes[0][1] * 100)}%"></span>
+                    <span class="globe-side-panel__shape-count">${c.toLocaleString("de-DE")}</span>
+                </div>`
+            ).join("");
+
+        // Treemap-Button verdrahten
+        treemapBtn.onclick = () => {
+            if (typeof window.__showCountryTreemap === "function") {
+                window.__showCountryTreemap(entry.loc.country);
+            }
+        };
+
+        panel.classList.add("is-open");
+    }
+
+    document.getElementById("globe-side-panel-close")?.addEventListener("click", () => {
+        document.getElementById("globe-side-panel")?.classList.remove("is-open");
     });
 
     renderer.domElement.addEventListener("dblclick", (e) => {
@@ -723,6 +1089,14 @@ async function init() {
                 const phase = t * 4 + i;
                 lm.material.opacity = 0.5 + 0.5 * Math.sin(phase);
                 lm.material.transparent = true;
+            }
+        }
+
+        // Flugbahnen pulsen leicht in der Opazität
+        if (flightPathsOn && flightGroup.children.length) {
+            for (const line of flightGroup.children) {
+                const phase = (line.userData.phase || 0) + t * 1.4;
+                line.material.opacity = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(phase));
             }
         }
 

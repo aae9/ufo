@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lunar Reconnaissance · UAP · Das Verbotene</title>
+    <link rel="stylesheet" href="lunar.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=IM+Fell+English+SC&family=Special+Elite&family=VT323&display=swap" rel="stylesheet" />
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <header class="lunar-header">
+        <a href="uap_files.html" class="back-stamp" aria-label="Zurück zum Archiv">
+            <span class="back-stamp__arrow">←</span>
+            <span class="back-stamp__label">Archiv</span>
+        </a>
+
+        <div class="lunar-header__title">
+            <p class="lunar-header__eyebrow">Department of War · UAP · Lunar Operations</p>
+            <h1 class="lunar-header__name">Lunar Reconnaissance</h1>
+        </div>
+
+        <a href="index.html" class="back-stamp back-stamp--secondary" aria-label="Hauptarchiv">
+            <span class="back-stamp__label">Hauptarchiv</span>
+            <span class="back-stamp__arrow">→</span>
+        </a>
+    </header>
+
+    <nav class="mode-switcher" aria-label="Theater wählen">
+        <button type="button" class="mode-button is-active" data-mode="orbit">
+            <span class="mode-button__index">01</span>
+            <span class="mode-button__name">Orbit</span>
+            <span class="mode-button__hint">3D Mond · Apollo Pins</span>
+        </button>
+        <button type="button" class="mode-button" data-mode="constellation">
+            <span class="mode-button__index">02</span>
+            <span class="mode-button__name">Evidence</span>
+            <span class="mode-button__hint">Beweis-Konstellation</span>
+        </button>
+        <button type="button" class="mode-button" data-mode="surface">
+            <span class="mode-button__index">03</span>
+            <span class="mode-button__name">Surface</span>
+            <span class="mode-button__hint">Erste Person auf dem Mond</span>
+        </button>
+    </nav>
+
+    <main class="lunar-stage">
+        <div id="lunar-canvas" class="lunar-canvas"></div>
+
+        <div class="lunar-loader" id="lunar-loader">
+            <p class="lunar-loader__line">// SYNCING LUNAR ARCHIVE //</p>
+            <p class="lunar-loader__line" id="loader-detail">Initialisiere Three.js …</p>
+        </div>
+
+        <!-- Mode-spezifische Hinweis-Cards (unten links) -->
+        <div class="mode-caption" data-mode="orbit">
+            <p class="mode-caption__title">01 · Orbit</p>
+            <p class="mode-caption__body">
+                Ziehen rotiert · Scrollen zoomt · Klick auf einen <strong>roten Pin</strong>
+                öffnet die NASA-UAP-Bilder von dieser Apollo-Mission.
+            </p>
+        </div>
+        <div class="mode-caption" data-mode="constellation" hidden>
+            <p class="mode-caption__title">02 · Evidence Constellation</p>
+            <p class="mode-caption__body">
+                Schwebende Polaroids aller bekannten Bilder.
+                <strong>Rote Linien</strong> verbinden Akten der gleichen Mission oder Behörde.
+                Klick auf ein Polaroid zentriert die Kamera.
+            </p>
+        </div>
+        <div class="mode-caption" data-mode="surface" hidden>
+            <p class="mode-caption__title">03 · Surface · Apollo 12</p>
+            <p class="mode-caption__body">
+                Du stehst im Ocean of Storms. <strong>Ziehen</strong> dreht den Blick.
+                Holographische UAP-Aufzeichnungen schweben in der Mondstille.
+            </p>
+        </div>
+
+        <!-- Detail-Popup für angeklicktes Bild -->
+        <div class="image-popup" id="image-popup" hidden>
+            <button type="button" class="image-popup__close" id="popup-close" aria-label="Schließen">×</button>
+            <div class="image-popup__frame">
+                <img id="popup-image" class="image-popup__img" alt="UAP-Bild" />
+                <div class="image-popup__tape image-popup__tape--tl"></div>
+                <div class="image-popup__tape image-popup__tape--tr"></div>
+            </div>
+            <div class="image-popup__meta">
+                <p class="image-popup__agency" id="popup-agency">NASA</p>
+                <h3 class="image-popup__title" id="popup-title">—</h3>
+                <p class="image-popup__date" id="popup-date">—</p>
+                <a id="popup-open" class="image-popup__link" target="_blank" rel="noopener">Original öffnen →</a>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="lunar.js?v=1"></script>
+</body>
+</html>

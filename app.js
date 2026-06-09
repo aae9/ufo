@@ -1,119 +1,9 @@
 import * as d3 from 'https://esm.sh/d3@7';
 
-const rawData = await d3.csv("nuforc_str.csv");
+const rawData = await d3.csv("nuforc_str_cleaned.csv");
 
 console.log(`${rawData.length} Sichtungen geladen.`);
 console.log("Beispiel-Eintrag:", rawData[0]);
-
-
-// Spike Chart Funktion
-function createSpikeChart(containerId, data, options = {}) {
-    const config = {
-        width: options.width || 800,
-        height: options.height || 400,
-        margin: { top: 20, right: 30, bottom: 80, left: 50 },
-        spikeColor: options.spikeColor || "gray",
-        spikeWidth: options.spikeWidth || 6,
-        maxSpikeHeight: options.maxSpikeHeight || 250
-    };
-
-    const innerWidth = config.width - config.margin.left - config.margin.right;
-    const innerHeight = config.height - config.margin.top - config.margin.bottom;
-
-    d3.select(containerId).selectAll("*").remove();
-
-    const svg = d3.select(containerId)
-        .append("svg")
-        .attr("width", config.width)
-        .attr("height", config.height);
-
-    const g = svg.append("g")
-        .attr("transform", `translate(${config.margin.left},${config.margin.top})`);
-
-    const xScale = d3.scaleBand()
-        .domain(data.map(d => d.label))
-        .range([0, innerWidth])
-        .padding(0.2);
-
-    const yScale = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d.value)])
-        .range([0, config.maxSpikeHeight]);
-
-    function spikePath(x, baseY, height, width) {
-        const halfWidth = width / 2;
-        return `M ${x - halfWidth},${baseY} L ${x},${baseY - height} L ${x + halfWidth},${baseY} Z`;
-    }
-
-    g.selectAll(".spike")
-        .data(data)
-        .enter()
-        .append("path")
-        .attr("class", "spike")
-        .attr("d", d => {
-            const x = xScale(d.label) + xScale.bandwidth() / 2;
-            return spikePath(x, innerHeight, yScale(d.value), config.spikeWidth);
-        })
-        .attr("fill", config.spikeColor)
-        .attr("fill-opacity", 0.7)
-        .attr("stroke", config.spikeColor)
-        .append("title")
-        .text(d => `${d.label}: ${d.value}`);
-
-    // X-Achse mit rotierten Labels (gut für viele Kategorien)
-    g.append("g")
-        .attr("transform", `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(xScale))
-        .selectAll("text")
-        .attr("transform", "rotate(-45)")
-        .style("text-anchor", "end");
-
-    // Y-Achse
-    const yAxisScale = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d.value)])
-        .range([innerHeight, innerHeight - config.maxSpikeHeight]);
-
-    g.append("g").call(d3.axisLeft(yAxisScale).ticks(5));
-}
-
-function createShapeSpikeChart(containerId, sightings) {
-    const shapeCounts = d3.rollups(
-        sightings,
-        v => v.length,
-        d => d.Shape
-    )
-    .filter(([shape]) => shape && shape !== "")
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 20) // Top 20 Shapes
-    .map(([shape, count]) => ({ label: shape, value: count }));
-
-    createSpikeChart(containerId, shapeCounts, {
-        spikeColor: "#457b9d",
-        spikeWidth: 10,
-        width: 900
-    });
-}
-function createTimeSpikeChart(containerId, sightings) {
-    const yearCounts = d3.rollups(
-        sightings,
-        v => v.length,
-        d => {
-            const match = d.Occurred?.match(/^(\d{4})/);
-            return match ? match[1] : null;
-        }
-    )
-    .filter(([year]) => year !== null)
-    .sort((a, b) => d3.ascending(a[0], b[0]))
-    .map(([year, count]) => ({ label: year, value: count }));
-
-    createSpikeChart(containerId, yearCounts, {
-        spikeColor: "#2a9d8f",
-        spikeWidth: 6,
-        width: 1000
-    });
-}
-// Aufruf der Spike Charts
-createShapeSpikeChart("#shape-chart", rawData);
-createTimeSpikeChart("#time-chart", rawData);
 
 
 // Zoomable Map Funktion
@@ -542,10 +432,21 @@ console.log("Verfügbare Jahre:", availableYears);
 window.__countsByDay = countsByDay;
 window.__availableYears = availableYears;
 
+// Index aller Reports nach Datum (YYYY-MM-DD) — für die Datums-Suche
+const reportsByDate = new Map();
+for (const row of rawData) {
+    const match = row.Occurred?.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (!match) continue;
+    const key = match[1];
+    if (!reportsByDate.has(key)) reportsByDate.set(key, []);
+    reportsByDate.get(key).push(row);
+}
+
 // function: create Heatmap Calendar
 function createCalendar(containerId, countsByDay, year, options = {}) {
     const cellSize = options.cellSize || 17;
     const colorRange = options.colorRange || ["#0a1628", "#22d3ee"]
+    const selectedDateKey = options.selectedDateKey || null;
 
     const yearStart = new Date(Date.UTC(year, 0, 1));
     const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
@@ -607,10 +508,14 @@ function createCalendar(containerId, countsByDay, year, options = {}) {
         .attr("rx", 2)
         .attr("fill", d => {
             const key = d.toISOString().slice(0, 10);
+            if (key === selectedDateKey) return "#fbbf24"; // amber-Highlight
             const count = countsByDay.get(key) || 0;
-            // days without any count getting this color else colorScale(count)
             return count === 0 ? "#131828" : colorScale(count);
-        });
+        })
+        .attr("stroke", d => d.toISOString().slice(0, 10) === selectedDateKey ? "#fde68a" : "none")
+        .attr("stroke-width", d => d.toISOString().slice(0, 10) === selectedDateKey ? 1.6 : 0)
+        .style("filter", d => d.toISOString().slice(0, 10) === selectedDateKey
+            ? "drop-shadow(0 0 6px rgba(251, 191, 36, 0.85))" : null);
     // Tooltips for each cell
     cells.append("title")
         .text(d => {
@@ -702,8 +607,12 @@ availableYears.forEach(year => {
 
 yearSelect.value = availableYears[0];
 
+let selectedDateKey = null;
+
 function renderCalendar(year) {
-    const stats = createCalendar("#calendar-container", countsByDay, year);
+    const stats = createCalendar("#calendar-container", countsByDay, year, {
+        selectedDateKey,
+    });
     calendarTitle.textContent = `Sichtungen pro Tag in ${year} ` +
         `(${stats.totalSightings.toLocaleString("de-DE")} insgesamt, ` +
         `Max: ${stats.maxValue} an einem Tag)`;
@@ -715,293 +624,592 @@ yearSelect.addEventListener("change", () => {
     renderCalendar(+yearSelect.value);
 });
 
-
-// Marimekko chart
-function createMarimekkoChart(containerId, data, options = {}) {
-    const config = {
-        width: options.width || 800,
-        height: options.height || 400,
-        margin: { top: 20, right: 30, bottom: 80, left: 50 },
-        spikeColor: options.spikeColor || "red",
-        spikeWidth: options.spikeWidth || 6,
-        maxSpikeHeight: options.maxSpikeHeight || 250
-    };
-
-}
-
-
-// Bubble chart
 // =========================================
-// WORT-DATEN VORBEREITEN
+// DATUM-EXPLORER
 // =========================================
+// Drei Inputs (JJJJ-MM-TT) → Highlight im Heatmap-Kalender + Reports-Liste
+function setupDateExplorer() {
+    const yInput = document.getElementById("date-year-input");
+    const mInput = document.getElementById("date-month-input");
+    const dInput = document.getElementById("date-day-input");
+    const clearBtn = document.getElementById("date-clear-btn");
+    const statusEl = document.getElementById("date-explorer-status");
+    const reportsEl = document.getElementById("date-reports");
+    if (!yInput || !mInput || !dInput) return;
 
-// Englische Stoppwörter — die häufigsten "Füllwörter", die in fast jedem
-// Text vorkommen und keine Aussage haben. Wenn wir die nicht rauswerfen,
-// wären "the", "and", "was" die größten Bubbles -- nicht spannend.
-//
-// Quelle: angelehnt an die Standard-NLTK-Stopword-Liste, leicht erweitert
-// um typische Bericht-Sprache ("said", "got", ...).
-const STOPWORDS = new Set([
-    "a", "an", "the", "and", "or", "but", "if", "then", "else", "when",
-    "at", "by", "for", "with", "about", "against", "between", "into",
-    "through", "during", "before", "after", "above", "below", "to", "from",
-    "up", "down", "in", "out", "on", "off", "over", "under", "again",
-    "further", "once", "here", "there", "all", "any", "both", "each",
-    "few", "more", "most", "other", "some", "such", "no", "nor", "not",
-    "only", "own", "same", "so", "than", "too", "very", "can", "will",
-    "just", "should", "now", "i", "me", "my", "myself", "we", "our",
-    "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves",
-    "he", "him", "his", "himself", "she", "her", "hers", "herself", "it",
-    "its", "itself", "they", "them", "their", "theirs", "themselves",
-    "what", "which", "who", "whom", "this", "that", "these", "those",
-    "am", "is", "are", "was", "were", "be", "been", "being", "have",
-    "has", "had", "having", "do", "does", "did", "doing", "would", "could",
-    "should", "may", "might", "must", "shall", "as", "of", "because",
-    "while", "until", "since", "also", "got", "get", "said", "saw",
-    "see", "seen", "looked", "looking", "look", "went", "go", "going",
-    "came", "come", "coming", "back", "made", "make", "making", "still",
-    "even", "around", "like", "way", "two", "one"
-]);
-
-// Tokenizer: zerlegt einen Text in einzelne Wörter
-// - alles auf Kleinbuchstaben
-// - alle Nicht-Buchstaben werden zu Trennern
-// - leere Strings rausfiltern
-function normalize(word) {
-    // Plural-s entfernen, aber nicht für Wörter die auf "ss" enden
-    // ("class" soll "class" bleiben, nicht "clas")
-    if (word.length > 4 && word.endsWith("s") && !word.endsWith("ss")) {
-        return word.slice(0, -1);
+    function escapeHtml(str) {
+        if (str == null) return "";
+        const div = document.createElement("div");
+        div.textContent = String(str);
+        return div.innerHTML;
     }
-    return word;
-}
 
-function tokenize(text) {
-    if (!text) return [];
-    return text
-        .toLowerCase()
-        .split(/[^a-z]+/)
-        .filter(Boolean)
-        .map(normalize);   // ← neu: nach dem Splitten normalisieren
-}
-
-// Alle Summaries zusammen tokenisieren und Wörter zählen
-function buildWordCounts(rawData, field, topN) {
-    const counts = new Map();
-
-    for (const row of rawData) {
-        const tokens = tokenize(row[field]);
-        for (const word of tokens) {
-            if (STOPWORDS.has(word)) continue;
-            counts.set(word, (counts.get(word) || 0) + 1);
+    function notify3D() {
+        // Falls die 3D-Skyline-Szene existiert: dort gleichermaßen markieren
+        if (typeof window.__updateCalendar3DSelection === "function") {
+            window.__updateCalendar3DSelection();
         }
     }
 
-    // Map zu Array, sortieren, Top N nehmen
-    return Array.from(counts, ([word, count]) => ({ word, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, topN);
-}
-
-const wordData = buildWordCounts(rawData, "Summary", 200);
-
-// Für bubble-ar.js zugänglich machen — gleiche Top-Liste, in 3D verwendet
-window.__wordData = wordData;
-
-console.log(`Top 10 Wörter:`, wordData.slice(0, 10));
-console.log(`Häufigstes Wort: "${wordData[0].word}" mit ${wordData[0].count} Vorkommen`);
-console.log(`Seltenstes (Platz 200): "${wordData[199]?.word}" mit ${wordData[199]?.count} Vorkommen`);
-
-
-// =========================================
-// BUBBLE-CHART-FUNKTION
-// =========================================
-//
-// Zeichnet einen Force-Simulation-Bubble-Chart.
-//
-// Parameter:
-//   containerId  - CSS-Selektor des SVG-Containers
-//   data         - Array von { word, count }
-//   options      - optional: { width, height, colorRange }
-//
-function createBubbleChart(containerId, data, options = {}) {
-    // Größere viewBox füllt den Container voll aus
-    const width = options.width || 1200;
-    const height = options.height || 720;
-    const colorRange = options.colorRange || ["#1e3a5f", "#22d3ee"];
-    // dunkles Blau (selten) -> helles Cyan (häufig)
-
-    // ----- BAUSTEIN 1: Skalen für Größe und Farbe -----
-    // scaleSqrt: Quadratwurzel-Skala. Wichtig für Bubble-Größen, weil
-    // das Auge Flächen wahrnimmt, nicht Radien. Bei linearer Skala
-    // würden häufige Wörter "zu krass" rausstechen.
-    const minCount = d3.min(data, d => d.count);
-    const maxCount = d3.max(data, d => d.count);
-
-    // Größere Bubbles, weil mehr Platz zur Verfügung steht
-    const radiusScale = d3.scaleSqrt()
-        .domain([0, maxCount])
-        .range([4, 80]);  // min 4px (lesbar), max 80px
-
-    // Farbskala: lineare Interpolation zwischen den beiden Range-Farben.
-    // log-Skala wäre auch möglich, aber bei Wörtern reicht linear.
-    const colorScale = d3.scaleSequential()
-    .domain([minCount, maxCount])
-    .interpolator(d3.interpolateTurbo);
-
-    // Schriftgröße proportional zum Radius.
-    // Min 8px (sonst unlesbar), Max scaliert mit Bubble-Größe.
-    function fontSizeFor(d) {
-        const r = radiusScale(d.count);
-        return Math.max(8, Math.min(r / 2.4, 28));
+    function clearSelection() {
+        if (selectedDateKey === null) return;
+        selectedDateKey = null;
+        window.__selectedDateKey = null;
+        renderCalendar(+yearSelect.value);
+        reportsEl.hidden = true;
+        reportsEl.innerHTML = "";
+        clearBtn.hidden = true;
+        renderShapeChips(rawData); // zurück zu Gesamt-Verteilung
+        notify3D();
     }
 
-    // ----- BAUSTEIN 2: SVG aufsetzen -----
-    // Nur das SVG entfernen, damit overlay-Elemente (z.B. AR-Button) erhalten bleiben
-    d3.select(containerId).selectAll("svg").remove();
+    function showStatus(msg, kind = "info") {
+        statusEl.textContent = msg || "";
+        statusEl.dataset.kind = kind;
+    }
 
-    const svg = d3.select(containerId)
+    function renderReports(date, reports) {
+        const dateStr = date.toLocaleDateString("de-DE", {
+            weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
+        });
+
+        if (!reports || reports.length === 0) {
+            reportsEl.innerHTML = `
+                <div class="date-reports__header">
+                    <h3 class="date-reports__title">${escapeHtml(dateStr)}</h3>
+                    <p class="date-reports__count">Keine Sichtungen an diesem Tag</p>
+                </div>
+            `;
+            reportsEl.hidden = false;
+            return;
+        }
+
+        // Pro Report: Shape, Location, Time, Summary
+        const items = reports.map(r => {
+            const shape = r.Shape || "—";
+            const location = r.Location || "Unbekannt";
+            const occurredParts = (r.Occurred || "").trim().split(/\s+/);
+            const timePart = occurredParts.length > 1 ? occurredParts.slice(1).join(" ") : "";
+            const summary = r.Summary || "";
+            return `
+                <li class="date-reports__item">
+                    <div class="date-reports__item-header">
+                        <span class="date-reports__shape">${escapeHtml(shape)}</span>
+                        <span class="date-reports__location">${escapeHtml(location)}</span>
+                        ${timePart ? `<span class="date-reports__time">${escapeHtml(timePart)}</span>` : ""}
+                    </div>
+                    ${summary ? `<p class="date-reports__summary">${escapeHtml(summary)}</p>` : ""}
+                </li>
+            `;
+        }).join("");
+
+        reportsEl.innerHTML = `
+            <div class="date-reports__header">
+                <h3 class="date-reports__title">${escapeHtml(dateStr)}</h3>
+                <p class="date-reports__count">${reports.length.toLocaleString("de-DE")} Sichtung${reports.length === 1 ? "" : "en"}</p>
+            </div>
+            <ul class="date-reports__list">
+                ${items}
+            </ul>
+        `;
+        reportsEl.hidden = false;
+    }
+
+    function tryUpdate() {
+        const yStr = yInput.value;
+        const mStr = mInput.value;
+        const dStr = dInput.value;
+
+        // Falls noch nicht alle Felder gefüllt sind: still bleiben
+        if (yStr.length < 4 || mStr.length === 0 || dStr.length === 0) {
+            showStatus("");
+            clearSelection();
+            return;
+        }
+
+        const y = parseInt(yStr, 10);
+        const m = parseInt(mStr, 10);
+        const d = parseInt(dStr, 10);
+        if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+            showStatus("Ungültige Eingabe", "error");
+            clearSelection();
+            return;
+        }
+
+        // Datum auf Gültigkeit prüfen (Roll-Over erkennen, z.B. 31. Februar)
+        const date = new Date(Date.UTC(y, m - 1, d));
+        if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) {
+            showStatus(`Ungültiges Datum: ${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`, "error");
+            clearSelection();
+            return;
+        }
+
+        if (!availableYears.includes(y)) {
+            showStatus(`Keine Sichtungen für das Jahr ${y} im Datensatz vorhanden`, "warn");
+            clearSelection();
+            return;
+        }
+
+        const key = date.toISOString().slice(0, 10);
+        selectedDateKey = key;
+        window.__selectedDateKey = key;
+
+        // Jahr im Dropdown sync, dann Kalender neu rendern (mit Highlight)
+        if (+yearSelect.value !== y) {
+            yearSelect.value = y;
+        }
+        renderCalendar(y);
+
+        const reports = reportsByDate.get(key) || [];
+        renderReports(date, reports);
+        renderShapeChips(reports); // Chips zeigen jetzt nur noch Sichtungen dieses Tages
+        showStatus(`Markiert: ${date.toLocaleDateString("de-DE", { timeZone: "UTC" })}`, "ok");
+        clearBtn.hidden = false;
+
+        // Wenn die 3D-Skyline gerade offen ist, dort den Bar ebenfalls markieren
+        notify3D();
+    }
+
+    // Auto-Advance bei voller Feldlänge + Backspace springt rückwärts wenn leer
+    function bindInput(el, maxLen, nextEl, prevEl) {
+        el.addEventListener("input", () => {
+            // Nur Ziffern, Maxlänge erzwingen
+            const cleaned = el.value.replace(/\D/g, "").slice(0, maxLen);
+            if (cleaned !== el.value) el.value = cleaned;
+            if (el.value.length >= maxLen && nextEl) nextEl.focus();
+            tryUpdate();
+        });
+        el.addEventListener("keydown", e => {
+            if (e.key === "Backspace" && el.value === "" && prevEl) {
+                prevEl.focus();
+            }
+        });
+        // Beim Verlassen mit Tab/Enter trotzdem versuchen
+        el.addEventListener("blur", tryUpdate);
+    }
+
+    bindInput(yInput, 4, mInput, null);
+    bindInput(mInput, 2, dInput, yInput);
+    bindInput(dInput, 2, null, mInput);
+
+    clearBtn.addEventListener("click", () => {
+        yInput.value = "";
+        mInput.value = "";
+        dInput.value = "";
+        showStatus("");
+        clearSelection();
+        yInput.focus();
+    });
+
+    // Wenn der User selbst das Jahr-Dropdown wechselt, die Auswahl aufräumen
+    yearSelect.addEventListener("change", () => {
+        if (selectedDateKey && +selectedDateKey.slice(0, 4) !== +yearSelect.value) {
+            // Highlight existiert nicht mehr im sichtbaren Jahr — Auswahl entfernen
+            yInput.value = "";
+            mInput.value = "";
+            dInput.value = "";
+            showStatus("");
+            clearSelection();
+        }
+    });
+}
+
+setupDateExplorer();
+
+// Datum-Explorer einklappen — analog zu setupCollapsibleCharts:
+// Klick auf Intro togglet das Chevron am Heading (über is-collapsed) + den Body
+function setupDateExplorerCollapse() {
+    const intro = document.querySelector(".date-explorer__intro");
+    const heading = document.querySelector(".date-explorer__heading");
+    const body = document.querySelector(".date-explorer__body");
+    if (!intro || !heading || !body) return;
+
+    intro.setAttribute("role", "button");
+    intro.setAttribute("aria-expanded", "true");
+    intro.setAttribute("tabindex", "0");
+
+    const toggle = () => {
+        const collapsed = body.classList.toggle("is-collapsed");
+        heading.classList.toggle("is-collapsed", collapsed);
+        intro.setAttribute("aria-expanded", String(!collapsed));
+    };
+
+    intro.addEventListener("click", toggle);
+    intro.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle();
+        }
+    });
+}
+
+setupDateExplorerCollapse();
+
+
+// =========================================
+// SHAPE-VERTEILUNG (informative Chips)
+// =========================================
+// Reagiert auf das ausgewählte Datum: ohne Datum = alle Sichtungen,
+// mit Datum = nur Sichtungen dieses Tages. Shapes ohne Treffer verschwinden.
+function renderShapeChips(dataset) {
+    const host = document.getElementById("shape-chips");
+    if (!host) return;
+
+    // Case-insensitive zählen: "Egg" und "egg" werden zusammengeführt.
+    const counts = new Map();
+    for (const row of dataset) {
+        const raw = (row.Shape || "").trim();
+        if (!raw) continue;
+        const key = raw.toLowerCase();
+        counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    const shapes = [...counts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([s, c]) => ({
+            shape: s.charAt(0).toUpperCase() + s.slice(1),
+            count: c,
+        }));
+
+    if (shapes.length === 0) {
+        host.innerHTML = `<p class="shape-chips__empty">Keine Shapes an diesem Tag dokumentiert.</p>`;
+        return;
+    }
+
+    const chips = shapes.map(t =>
+        `<button type="button" class="shape-chip" data-shape="${t.shape}">${t.shape} <span class="shape-chip__count">${t.count.toLocaleString("de-DE")}</span></button>`
+    );
+    host.innerHTML = chips.join("");
+
+    host.querySelectorAll(".shape-chip").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const wasActive = btn.classList.contains("is-active");
+            host.querySelectorAll(".shape-chip").forEach(b => b.classList.remove("is-active"));
+            const shape = wasActive ? null : btn.dataset.shape;
+            if (!wasActive) btn.classList.add("is-active");
+            // Linked-View: Globus filtert ebenfalls
+            if (typeof window.__globeFilter === "function") {
+                window.__globeFilter(undefined, undefined, shape ? shape.toLowerCase() : null);
+            }
+        });
+    });
+}
+
+renderShapeChips(rawData);
+
+
+// =========================================
+// TIMELINE — Linienplot der Sichtungen über die Jahre + Brush-Slider
+// =========================================
+function setupTimeline() {
+    const container = document.getElementById("timeline-container");
+    if (!container) return;
+
+    // Aggregation pro Jahr (aus dem bereits geparsten datedSightings-Array)
+    const yearCounts = d3.rollups(
+        datedSightings,
+        v => v.length,
+        d => d.getUTCFullYear(),
+    )
+    .sort((a, b) => d3.ascending(a[0], b[0]))
+    .map(([year, count]) => ({ year, count }));
+
+    if (yearCounts.length === 0) return;
+
+    // Daten für 3D-Timeline global verfügbar machen
+    window.__yearCounts = yearCounts;
+    window.__rawDataRef = rawData;
+
+    const width = 1200;
+    const height = 380;
+    const margin = { top: 20, right: 30, bottom: 60, left: 60 };
+    const innerW = width - margin.left - margin.right;
+    const innerH = height - margin.top - margin.bottom;
+
+    d3.select(container).selectAll("svg").remove();
+
+    const svg = d3.select(container)
         .append("svg")
         .attr("viewBox", [0, 0, width, height])
         .attr("preserveAspectRatio", "xMidYMid meet")
         .attr("width", "100%")
         .style("height", "auto")
         .style("display", "block")
-        .style("font-family", "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif")
-        // cursor: grab signalisiert "draggable"
-        .style("cursor", "grab");
+        .style("font-family", "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif");
 
-    // ----- BAUSTEIN 3: Bubble-Gruppen erstellen -----
-    // Jede Bubble ist eine <g>, die einen Kreis und Text enthält --
-    // so können wir beides zusammen verschieben.
-    const bubbles = svg.append("g")
-        .selectAll("g")
-        .data(data)
-        .join("g");
+    const g = svg.append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Der Kreis selbst
-    bubbles.append("circle")
-        .attr("r", d => radiusScale(d.count))
-        .attr("fill", d => colorScale(d.count))
-        .attr("fill-opacity", 0.88)
-        .attr("stroke", "#0a0e1a")
-        .attr("stroke-width", 1.5)
-        .style("transition", "fill-opacity 0.15s ease, stroke-width 0.15s ease");
+    const yearMinAll = d3.min(yearCounts, d => d.year);
+    const yearMaxAll = d3.max(yearCounts, d => d.year);
 
-    // Tooltip
-    bubbles.append("title")
-        .text(d => `${d.word}: ${d.count} Vorkommen`);
+    const xScale = d3.scaleLinear().range([0, innerW]);
+    const yScale = d3.scaleLinear().range([innerH, 0]);
 
-    // Wort-Label in der Mitte
-    bubbles.append("text")
-        .attr("text-anchor", "middle")     // horizontal zentriert
-        .attr("dy", "0.35em")              // vertikal grob zentriert
-        .attr("fill", d => {
-            // d3.hsl().l gibt die Helligkeit (0 dunkel - 1 hell)
-            const lightness = d3.hsl(colorScale(d.count)).l;
-            return lightness > 0.55 ? "#0a0e1a" : "#fff";
-        })
-        .attr("font-weight", "600")
-        .attr("letter-spacing", "-0.01em")
-        .attr("font-size", d => fontSizeFor(d))
-        .attr("pointer-events", "none")    // klick geht "durch" zum Kreis
-        .text(d => d.word)
-        // Verstecke Text, der nicht in die Bubble passt
-        .style("display", function(d) {
-            const r = radiusScale(d.count);
-            const textWidth = this.getComputedTextLength();
-            return textWidth > r * 1.8 ? "none" : null;
-        });
+    // Cyan-Gradient unter der Linie
+    const defs = svg.append("defs");
+    const areaGrad = defs.append("linearGradient")
+        .attr("id", "timeline-area-grad")
+        .attr("x1", 0).attr("x2", 0).attr("y1", 0).attr("y2", 1);
+    areaGrad.append("stop").attr("offset", "0%").attr("stop-color", "#22d3ee").attr("stop-opacity", 0.5);
+    areaGrad.append("stop").attr("offset", "100%").attr("stop-color", "#22d3ee").attr("stop-opacity", 0);
 
-    // Sanfter Hover-Effekt
-    bubbles
-        .on("mouseenter", function() {
-            d3.select(this).select("circle")
-                .attr("fill-opacity", 1)
-                .attr("stroke-width", 2.5);
-        })
-        .on("mouseleave", function() {
-            d3.select(this).select("circle")
-                .attr("fill-opacity", 0.88)
-                .attr("stroke-width", 1.5);
-        });
+    // Clip-Path, damit die Linie/Fläche beim Zoom nicht über die Achse hinausragt
+    defs.append("clipPath").attr("id", "timeline-clip")
+        .append("rect").attr("width", innerW).attr("height", innerH);
 
-    // ----- BAUSTEIN 4: Force-Simulation -----
-    // Eine Simulation kombiniert mehrere Kräfte, die auf die Knoten wirken.
-    // Bei jedem "tick" werden die Positionen neu berechnet.
-    const simulation = d3.forceSimulation(data)
-        // Stärkere Zentrierungskräfte: Bubbles füllen den verfügbaren Raum besser aus
-        .force("x", d3.forceX(width / 2).strength(0.08))
-        .force("y", d3.forceY(height / 2).strength(0.10))
-        // Bubbles dürfen sich nicht überlappen.
-        // +1.5 als Puffer für eine luftigere Optik.
-        .force("collide", d3.forceCollide(d => radiusScale(d.count) + 1.5)
-            .strength(0.92))
-        // Bei jedem Tick: Positionen aller Bubbles aktualisieren.
-        .on("tick", ticked);
+    const plotG = g.append("g").attr("clip-path", "url(#timeline-clip)");
 
-    function ticked() {
-        bubbles.attr("transform", d => `translate(${d.x},${d.y})`);
+    const areaPath = plotG.append("path")
+        .attr("class", "timeline-area")
+        .attr("fill", "url(#timeline-area-grad)");
+
+    const linePath = plotG.append("path")
+        .attr("class", "timeline-line")
+        .attr("fill", "none")
+        .attr("stroke", "#67e8f9")
+        .attr("stroke-width", 2.2);
+
+    const dotsG = plotG.append("g").attr("class", "timeline-dots");
+
+    const xAxisG = g.append("g")
+        .attr("transform", `translate(0,${innerH})`)
+        .attr("class", "timeline-axis");
+
+    const yAxisG = g.append("g").attr("class", "timeline-axis");
+
+    const areaGen = d3.area()
+        .x(d => xScale(d.year))
+        .y0(innerH)
+        .y1(d => yScale(d.count))
+        .curve(d3.curveMonotoneX);
+
+    const lineGen = d3.line()
+        .x(d => xScale(d.year))
+        .y(d => yScale(d.count))
+        .curve(d3.curveMonotoneX);
+
+    const statsEl = document.getElementById("timeline-stats");
+    function updateStats(d0, d1) {
+        if (!statsEl) return;
+        const isFull = d0 === yearMinAll && d1 === yearMaxAll;
+        const sel = yearCounts.filter(d => d.year >= d0 && d.year <= d1);
+        const sum = d3.sum(sel, d => d.count);
+        if (isFull) {
+            statsEl.innerHTML = `Gesamt · <strong>${sum.toLocaleString("de-DE")}</strong> Sichtungen über alle Jahre`;
+        } else {
+            statsEl.innerHTML = `<strong>${d0}–${d1}</strong> · <strong>${sum.toLocaleString("de-DE")}</strong> Sichtungen (${sel.length} Jahre)`;
+        }
     }
 
-    // ----- BAUSTEIN 5: Drag-Verhalten -----
-    // d3.drag() handhabt Maus/Touch-Events automatisch.
-    // Wir binden 3 Events: start, drag, end -- jeweils mit eigenem Verhalten.
-    function dragstarted(event, d) {
-        // alphaTarget: wie "warm" die Simulation läuft.
-        // 0.3 reicht, damit Bewegung sichtbar ist, ohne dass alles fliegt.
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        // fx/fy: gefixte Position. Solange gesetzt, bleibt das Element dort.
-        d.fx = d.x;
-        d.fy = d.y;
-        d3.select(this).select("circle")
-            .attr("stroke", "#fff")
-            .attr("stroke-width", 2);
-        svg.style("cursor", "grabbing");
+    // ---- Hauptzeichnung: redraw skaliert beide Achsen + animiert beim Zoom ----
+    let currentDomain = [yearMinAll, yearMaxAll];
+
+    function redraw(domain, animate = true) {
+        let [d0, d1] = domain;
+        d0 = Math.max(yearMinAll, Math.min(yearMaxAll, d0));
+        d1 = Math.max(yearMinAll, Math.min(yearMaxAll, d1));
+        if (d0 > d1) [d0, d1] = [d1, d0];
+        if (d0 === d1) d1 = Math.min(yearMaxAll, d0 + 1);
+
+        const filtered = yearCounts.filter(d => d.year >= d0 && d.year <= d1);
+        if (filtered.length === 0) return;
+
+        xScale.domain([d0, d1]);
+        const ymax = d3.max(filtered, d => d.count) || 1;
+        yScale.domain([0, ymax * 1.08]);
+
+        const trans = animate ? d3.transition().duration(620).ease(d3.easeCubicInOut) : null;
+
+        const xAxis = d3.axisBottom(xScale).tickFormat(d3.format("d")).ticks(Math.min(10, filtered.length));
+        const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(d => d.toLocaleString("de-DE"));
+
+        if (animate) {
+            areaPath.datum(filtered).transition(trans).attr("d", areaGen);
+            linePath.datum(filtered).transition(trans).attr("d", lineGen);
+            xAxisG.transition(trans).call(xAxis);
+            yAxisG.transition(trans).call(yAxis);
+        } else {
+            areaPath.datum(filtered).attr("d", areaGen);
+            linePath.datum(filtered).attr("d", lineGen);
+            xAxisG.call(xAxis);
+            yAxisG.call(yAxis);
+        }
+
+        // Datenpunkte
+        const dotSel = dotsG.selectAll("circle").data(filtered, d => d.year);
+        dotSel.exit().remove();
+        const dotEnter = dotSel.enter().append("circle")
+            .attr("r", 2.5)
+            .attr("fill", "#22d3ee")
+            .attr("cx", d => xScale(d.year))
+            .attr("cy", d => yScale(d.count));
+        dotEnter.append("title")
+            .text(d => `${d.year}: ${d.count.toLocaleString("de-DE")} Sichtungen`);
+
+        const dotMerge = dotEnter.merge(dotSel);
+        if (animate) {
+            dotMerge.transition(trans)
+                .attr("cx", d => xScale(d.year))
+                .attr("cy", d => yScale(d.count));
+        } else {
+            dotMerge
+                .attr("cx", d => xScale(d.year))
+                .attr("cy", d => yScale(d.count));
+        }
+        dotMerge.select("title")
+            .text(d => `${d.year}: ${d.count.toLocaleString("de-DE")} Sichtungen`);
+
+        currentDomain = [d0, d1];
+        updateStats(d0, d1);
+        if (startInput) startInput.value = d0;
+        if (endInput)   endInput.value   = d1;
     }
 
-    function dragged(event, d) {
-        // Position folgt dem Mauszeiger
-        d.fx = event.x;
-        d.fy = event.y;
+    // ---- Inputs ----
+    const startInput = document.getElementById("timeline-year-start");
+    const endInput = document.getElementById("timeline-year-end");
+    const resetBtn = document.getElementById("timeline-year-reset");
+
+    if (startInput) { startInput.min = yearMinAll; startInput.max = yearMaxAll; startInput.value = yearMinAll; }
+    if (endInput)   { endInput.min   = yearMinAll; endInput.max   = yearMaxAll; endInput.value   = yearMaxAll; }
+
+    function onYearInputChange() {
+        const s = parseInt(startInput.value, 10);
+        const e = parseInt(endInput.value, 10);
+        if (!Number.isFinite(s) || !Number.isFinite(e)) return;
+        redraw([s, e]);
     }
+    startInput?.addEventListener("change", onYearInputChange);
+    endInput?.addEventListener("change", onYearInputChange);
 
-    function dragended(event, d) {
-        // Simulation wieder abkühlen lassen
-        if (!event.active) simulation.alphaTarget(0);
-        // fx/fy entfernen -> Element wird wieder von Kräften beeinflusst
-        d.fx = null;
-        d.fy = null;
-        d3.select(this).select("circle")
-            .attr("stroke", "#0a0e1a")
-            .attr("stroke-width", 1.5)
-            .attr("fill-opacity", 0.88);
-        svg.style("cursor", "grab");
-    }
-
-    bubbles.call(d3.drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended));
-
-    // ----- BAUSTEIN 6: Klick-Highlight -----
-    // Klick auf Bubble: kurze visuelle Hervorhebung
-    bubbles.on("click", function(event, d) {
-        // verhindern, dass der Klick auch als drag-end interpretiert wird
-        const circle = d3.select(this).select("circle");
-        circle.transition().duration(200)
-            .attr("r", radiusScale(d.count) * 1.2)
-            .transition().duration(200)
-            .attr("r", radiusScale(d.count));
+    resetBtn?.addEventListener("click", () => {
+        redraw([yearMinAll, yearMaxAll]);
     });
 
-    return { simulation };
+    // ---- Brush: am Ende des Drags zoomen + Selection clearen ----
+    const brushGroup = g.append("g").attr("class", "timeline-brush");
+    const brush = d3.brushX()
+        .extent([[0, 0], [innerW, innerH]])
+        .on("end", ({ selection, sourceEvent }) => {
+            if (!sourceEvent) return;     // programmatischer Move → ignorieren
+            if (!selection) return;       // Klick außerhalb → nichts tun
+            const [x0, x1] = selection;
+            const yMin = Math.round(xScale.invert(x0));
+            const yMax = Math.round(xScale.invert(x1));
+            // Brush-Selection wegblenden — der gezoomte View IST die Selection
+            brushGroup.call(brush.move, null);
+            redraw([yMin, yMax]);
+        });
+    brushGroup.call(brush);
+
+    // Doppelklick auf den Plot → Voll-Zoom (klassischer Pan/Zoom-Reset)
+    svg.on("dblclick", () => redraw([yearMinAll, yearMaxAll]));
+
+    // Initial-Render
+    redraw([yearMinAll, yearMaxAll], false);
 }
 
+setupTimeline();
+
+
 // =========================================
-// AUFRUF
+// GLOBUS-CONTROLS — Zeit-Slider + Auto-Play + Flugbahnen-Beta
 // =========================================
-createBubbleChart("#bubble-container", wordData);
+function setupGlobeControls() {
+    const startSlider = document.getElementById("globe-time-start");
+    const endSlider = document.getElementById("globe-time-end");
+    const display = document.getElementById("globe-time-display");
+    const playBtn = document.getElementById("globe-play-btn");
+    const flightBtn = document.getElementById("globe-flight-btn");
+    if (!startSlider || !endSlider) return;
+
+    // Wartet bis Globus initialisiert ist (window.__globeYearRange existiert)
+    function tryInit() {
+        if (!window.__globeYearRange || !window.__globeFilter) {
+            setTimeout(tryInit, 200);
+            return;
+        }
+        const { min, max } = window.__globeYearRange;
+        startSlider.min = min;  startSlider.max = max;  startSlider.value = min;
+        endSlider.min   = min;  endSlider.max   = max;  endSlider.value   = max;
+        updateDisplay();
+    }
+
+    function updateDisplay() {
+        const a = parseInt(startSlider.value, 10);
+        const b = parseInt(endSlider.value, 10);
+        display.textContent = `${a} – ${b}`;
+    }
+
+    function applyFilter() {
+        let a = parseInt(startSlider.value, 10);
+        let b = parseInt(endSlider.value, 10);
+        if (a > b) [a, b] = [b, a]; // tauschen, falls überschritten
+        if (a !== parseInt(startSlider.value, 10)) startSlider.value = a;
+        if (b !== parseInt(endSlider.value, 10))   endSlider.value   = b;
+        updateDisplay();
+        window.__globeFilter?.(a, b, undefined);
+    }
+
+    startSlider.addEventListener("input", applyFilter);
+    endSlider.addEventListener("input", applyFilter);
+
+    // --- Auto-Play: Endjahr fährt von Start bis Max in 14 Sekunden ---
+    let playing = false;
+    let playTimer = null;
+    const PLAY_DURATION_MS = 14000;
+
+    function startPlay() {
+        if (playing) return;
+        playing = true;
+        playBtn.textContent = "⏸";
+        playBtn.classList.add("is-playing");
+
+        const min = parseInt(startSlider.min, 10);
+        const max = parseInt(startSlider.max, 10);
+        const a = parseInt(startSlider.value, 10);
+        const startTime = performance.now();
+
+        function step(now) {
+            if (!playing) return;
+            const t = Math.min(1, (now - startTime) / PLAY_DURATION_MS);
+            const target = Math.round(a + (max - a) * t);
+            endSlider.value = target;
+            applyFilter();
+            if (t >= 1) {
+                stopPlay();
+                return;
+            }
+            playTimer = requestAnimationFrame(step);
+        }
+        playTimer = requestAnimationFrame(step);
+    }
+
+    function stopPlay() {
+        playing = false;
+        playBtn.textContent = "▶";
+        playBtn.classList.remove("is-playing");
+        if (playTimer) cancelAnimationFrame(playTimer);
+        playTimer = null;
+    }
+
+    playBtn?.addEventListener("click", () => {
+        if (playing) stopPlay();
+        else startPlay();
+    });
+
+    // --- Flugbahnen-Beta-Toggle ---
+    flightBtn?.addEventListener("click", () => {
+        const isOn = flightBtn.getAttribute("aria-pressed") === "true";
+        const next = !isOn;
+        flightBtn.setAttribute("aria-pressed", String(next));
+        window.__globeSetFlightPaths?.(next);
+    });
+
+    tryInit();
+}
+
+setupGlobeControls();
 
 
 // =========================================

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Department of War · UAP Files · Das Verbotene</title>
+    <link rel="stylesheet" href="uap_files.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=IM+Fell+English+SC&family=Special+Elite&family=VT323&display=swap" rel="stylesheet" />
+</head>
+<body>
+    <!-- Halftone-Hintergrund-Layer -->
+    <div class="halftone-bg" aria-hidden="true"></div>
+    <div class="paper-grain" aria-hidden="true"></div>
+
+    <header class="archive-header">
+        <a href="index.html" class="back-stamp" aria-label="Zurück zum Hauptarchiv">
+            <span class="back-stamp__arrow">←</span>
+            <span class="back-stamp__label">Hauptarchiv</span>
+        </a>
+
+        <div class="archive-header__meta">
+            <p class="archive-header__line">CLASSIFICATION · EYES ONLY</p>
+            <p class="archive-header__line">FILE GROUP · RELEASE 1</p>
+            <p class="archive-header__line">DECLASSIFIED // UAP // <span id="release-count">0</span> ITEMS</p>
+        </div>
+
+        <div class="archive-header__sigil" aria-hidden="true">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="sigilHalo" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="currentColor" stop-opacity="0.95"/>
+                        <stop offset="60%" stop-color="currentColor" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
+                    </radialGradient>
+                </defs>
+                <!-- äußerer Ring -->
+                <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" stroke-width="2"/>
+                <circle cx="100" cy="100" r="80" fill="none" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 4"/>
+                <!-- Stern (5-zackig) -->
+                <path d="M 100 22 L 122 86 L 188 86 L 134 124 L 154 188 L 100 150 L 46 188 L 66 124 L 12 86 L 78 86 Z"
+                      fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.85"/>
+                <!-- Augen-Detail -->
+                <ellipse cx="100" cy="100" rx="34" ry="18" fill="none" stroke="currentColor" stroke-width="1.4"/>
+                <circle cx="100" cy="100" r="9" fill="currentColor"/>
+                <circle cx="100" cy="100" r="3.5" fill="#f4eee2"/>
+                <!-- 8 Strahlen -->
+                <g stroke="currentColor" stroke-width="1">
+                    <line x1="100" y1="6" x2="100" y2="18"/>
+                    <line x1="100" y1="182" x2="100" y2="194"/>
+                    <line x1="6" y1="100" x2="18" y2="100"/>
+                    <line x1="182" y1="100" x2="194" y2="100"/>
+                    <line x1="34" y1="34" x2="42" y2="42"/>
+                    <line x1="158" y1="158" x2="166" y2="166"/>
+                    <line x1="166" y1="34" x2="158" y2="42"/>
+                    <line x1="34" y1="166" x2="42" y2="158"/>
+                </g>
+                <!-- Mittelpunkt-Glow -->
+                <circle cx="100" cy="100" r="50" fill="url(#sigilHalo)" opacity="0.35"/>
+            </svg>
+        </div>
+    </header>
+
+    <main class="archive">
+        <section class="archive__intro">
+            <p class="archive__eyebrow">Department of War · UAP Disclosure</p>
+            <h1 class="archive__title">Das Verbotene</h1>
+            <p class="archive__subtitle">
+                Files released under the U.S. Department of War's
+                Unidentified Anomalous Phenomena Disclosure program.
+                Mission reports, photographs, transcripts. Some redacted, some still classified.
+            </p>
+            <p class="archive__source">
+                Source · <a href="https://www.war.gov/ufo/" target="_blank" rel="noopener">war.gov/ufo</a>
+            </p>
+        </section>
+
+        <section class="archive__filters" aria-label="Filter">
+            <div class="filter-card">
+                <p class="filter-card__heading">Datum suchen</p>
+                <p class="filter-card__hint">Trage einen Tag, Monat oder Jahr ein.</p>
+                <div class="date-row">
+                    <label class="date-row__field">
+                        <span class="date-row__label">Jahr</span>
+                        <input type="text" id="uap-year" class="date-row__input date-row__input--year"
+                               inputmode="numeric" maxlength="4" placeholder="JJJJ" autocomplete="off" />
+                    </label>
+                    <span class="date-row__sep">·</span>
+                    <label class="date-row__field">
+                        <span class="date-row__label">Monat</span>
+                        <input type="text" id="uap-month" class="date-row__input date-row__input--mm"
+                               inputmode="numeric" maxlength="2" placeholder="MM" autocomplete="off" />
+                    </label>
+                    <span class="date-row__sep">·</span>
+                    <label class="date-row__field">
+                        <span class="date-row__label">Tag</span>
+                        <input type="text" id="uap-day" class="date-row__input date-row__input--mm"
+                               inputmode="numeric" maxlength="2" placeholder="TT" autocomplete="off" />
+                    </label>
+                    <button type="button" id="uap-clear" class="date-row__clear">Reset</button>
+                </div>
+                <p id="uap-status" class="filter-card__status" role="status" aria-live="polite"></p>
+            </div>
+
+            <div class="filter-card filter-card--agencies">
+                <p class="filter-card__heading">Behörde</p>
+                <p class="filter-card__hint">Klick filtert nach Quelle.</p>
+                <div id="agency-chips" class="agency-chips"></div>
+            </div>
+        </section>
+
+        <section class="archive__results">
+            <header class="results-header">
+                <p class="results-header__count"><span id="result-count">0</span> Akten gefunden</p>
+                <p class="results-header__legend">PDF · Bild · Video</p>
+            </header>
+            <div id="case-grid" class="case-grid" aria-live="polite"></div>
+            <p id="empty-state" class="empty-state" hidden>Kein Eintrag passt zu deinem Filter.</p>
+        </section>
+
+        <section class="lunar-cta" aria-label="Lunar Reconnaissance">
+            <a href="lunar.html" class="lunar-cta__link">
+                <span class="lunar-cta__eyebrow">Theater · Special Operations</span>
+                <span class="lunar-cta__title">Lunar Reconnaissance ↗</span>
+                <span class="lunar-cta__body">
+                    Drei 3D-Theater über die Apollo-UAP-Aufzeichnungen.
+                    Mond mit Landestellen-Pins · schwebende Beweis-Konstellation · erste Person auf dem Mond.
+                </span>
+            </a>
+        </section>
+
+        <footer class="archive__footer">
+            <p class="archive__footer-line">// END OF TRANSMISSION //</p>
+            <p class="archive__footer-line">Department of War · Unidentified Anomalous Phenomena Task Force</p>
+        </footer>
+    </main>
+
+    <script type="module" src="uap_files.js?v=1"></script>
+</body>
+</html>
