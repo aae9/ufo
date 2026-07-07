@@ -8,3 +8,5 @@ eeg.py
 eeg2.py
 eeg3.py
 EEG_Output.pdf
+eeg_report/
+output/
