@@ -2088,6 +2088,56 @@ body.calendar-3d-active {
 
 body.timeline-3d-active { overflow: hidden; }
 
+.timeline-3d-overlay__ar-host {
+    position: absolute;
+    bottom: max(env(safe-area-inset-bottom, 0px), 4rem);
+    right: max(env(safe-area-inset-right, 0px), 1.25rem);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: flex-end;
+}
+
+.timeline-3d-overlay__ar-button {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 1rem !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(34, 211, 238, 0.55) !important;
+    background: rgba(15, 23, 42, 0.78) !important;
+    color: #f1f5f9 !important;
+    font: 600 0.8rem var(--font-sans) !important;
+    letter-spacing: 0.04em !important;
+    cursor: pointer !important;
+    backdrop-filter: blur(10px);
+    text-transform: none !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    position: static !important;
+    transform: none !important;
+    box-shadow: 0 6px 18px rgba(34, 211, 238, 0.22);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.timeline-3d-overlay__ar-button:hover:not(:disabled) {
+    border-color: rgba(34, 211, 238, 0.95) !important;
+    box-shadow: 0 10px 26px rgba(34, 211, 238, 0.4);
+}
+
+.timeline-3d-overlay__ar-unsupported {
+    margin: 0;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+}
+
 
 /* ---------- Reports-Liste für ausgewähltes Datum ---------- */
 .date-reports {

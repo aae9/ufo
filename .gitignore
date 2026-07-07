@@ -4,3 +4,7 @@ concept/
 uapvideos/
 Release_1/
 .DS_Store
+eeg.py
+eeg2.py
+eeg3.py
+EEG_Output.pdf

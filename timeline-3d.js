@@ -8,6 +8,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { ARButton } from "three/addons/webxr/ARButton.js";
 
 // ---------- Konfiguration ----------
 const TOP_N = 14;               // Top-N Kategorien pro Dimension (mehr = glattere Surface)
@@ -354,6 +355,7 @@ function setupRenderer(stage) {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(stage.clientWidth, stage.clientHeight);
+    renderer.xr.enabled = true; // WebXR aktivieren
     stage.appendChild(renderer.domElement);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -380,6 +382,31 @@ function setupRenderer(stage) {
 
     renderer.domElement.addEventListener("pointerdown", () => {
         controls.autoRotate = false;
+    });
+
+    // WebXR: in AR Surface auf Tabletop-Größe schrumpfen + vor den User legen
+    renderer.xr.addEventListener("sessionstart", () => {
+        controls.enabled = false;
+        controls.autoRotate = false;
+        if (surfaceGroup) {
+            surfaceGroup.scale.setScalar(0.14);
+            surfaceGroup.position.set(0, 0, -0.7);
+        }
+        if (labelGroup) {
+            labelGroup.scale.setScalar(0.14);
+            labelGroup.position.set(0, 0, -0.7);
+        }
+    });
+    renderer.xr.addEventListener("sessionend", () => {
+        controls.enabled = true;
+        if (surfaceGroup) {
+            surfaceGroup.scale.setScalar(1);
+            surfaceGroup.position.set(0, 0, 0);
+        }
+        if (labelGroup) {
+            labelGroup.scale.setScalar(1);
+            labelGroup.position.set(0, 0, 0);
+        }
     });
 
     renderer.setAnimationLoop(() => {
@@ -416,6 +443,7 @@ async function openOverlay() {
         <div class="timeline-3d-overlay__hint">
             Ziehen zum Drehen · Scroll zum Zoom · Dropdown wechselt 3. Achse · ESC schließt
         </div>
+        <div class="timeline-3d-overlay__ar-host" id="timeline-3d-ar-host"></div>
     `;
     document.body.appendChild(overlay);
     document.body.classList.add("timeline-3d-active");
@@ -427,6 +455,28 @@ async function openOverlay() {
     if (!scene) setupBaseScene();
     buildSurface("shape");
     setupRenderer(stage);
+
+    // AR-Knopf einhängen: WebXR falls verfügbar, sonst Hinweis
+    const arHost = overlay.querySelector("#timeline-3d-ar-host");
+    try {
+        let arSupported = false;
+        if (navigator.xr?.isSessionSupported) {
+            arSupported = await navigator.xr.isSessionSupported("immersive-ar");
+        }
+        if (arSupported) {
+            const arBtn = ARButton.createButton(renderer, {
+                requiredFeatures: [],
+                optionalFeatures: ["dom-overlay", "local-floor"],
+                domOverlay: { root: overlay },
+            });
+            arBtn.classList.add("timeline-3d-overlay__ar-button");
+            arHost.appendChild(arBtn);
+        } else {
+            arHost.innerHTML = `<p class="timeline-3d-overlay__ar-unsupported">AR auf diesem Gerät nicht verfügbar</p>`;
+        }
+    } catch (err) {
+        console.info("WebXR-AR nicht möglich:", err);
+    }
 
     dimSelect.addEventListener("change", () => {
         const dim = dimSelect.value;
