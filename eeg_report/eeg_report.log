@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.6.22)  30 JUN 2026 21:32
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.6.22)  22 JUL 2026 14:19
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -721,40 +721,45 @@ Package hyperref Info: Link coloring OFF on input line 20.
 \@outlinefile=\write4
 \openout4 = `eeg_report.out'.
 
-LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 34.
+LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 37.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/lm/ot1lmr.fd
 File: ot1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OML+lmm on input line 34.
+LaTeX Font Info:    Trying to load font information for OML+lmm on input line 37.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/lm/omllmm.fd
 File: omllmm.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 34.
+LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 37.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/lm/omslmsy.fd
 File: omslmsy.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 34.
+LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 37.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/lm/omxlmex.fd
 File: omxlmex.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10.95> on input line 34.
+(Font)              <10.95> on input line 37.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 34.
+(Font)              <8> on input line 37.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 34.
-<eeg_profile.png, id=33, 650.43pt x 448.074pt>
+(Font)              <6> on input line 37.
+
+Overfull \hbox (14.08078pt too wide) in paragraph at lines 35--42
+[]\T1/lmr/m/n/10.95 (-20) Dabei steht []\T1/lmr/bx/n/10.95 (-20) rot[] \T1/lmr/m/n/10.95 (-20) für [] ($\OT1/lmr/m/n/10.95 (-20) 8$$[]$ [] $13$$[]$\T1/lmr/m/n/10.95 (-20) , ent-spann-te Wach-heit) und []\T1/lmr/bx/n/10.95 (-20) blau[] \T1/lmr/m/n/10.95 (-20) für []
+ []
+
+<eeg_profile.png, id=29, 650.43pt x 448.074pt>
 File: eeg_profile.png Graphic file (type png)
 <use eeg_profile.png>
-Package pdftex.def Info: eeg_profile.png  used on input line 97.
+Package pdftex.def Info: eeg_profile.png  used on input line 95.
 (pdftex.def)             Requested size: 472.31577pt x 325.38202pt.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10> on input line 109.
+(Font)              <10> on input line 107.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <7> on input line 109.
+(Font)              <7> on input line 107.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <5> on input line 109.
-Package pgfplots info on input line 142: Using 'lua backend=false' for axis: x coord trafo unsupported.
+(Font)              <5> on input line 107.
+Package pgfplots info on input line 140: Using 'lua backend=false' for axis: x coord trafo unsupported.
 
 
 [1
@@ -762,41 +767,28 @@ Package pgfplots info on input line 142: Using 'lua backend=false' for axis: x c
 {/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-ec.enc}{/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc}{/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}]
 
 [2 <./eeg_profile.png>]
-LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 204.
- (/usr/local/texlive/2025/texmf-dist/tex/latex/lm/ts1lmr.fd
-File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-)
-LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 224.
- (/usr/local/texlive/2025/texmf-dist/tex/latex/lm/t1lmtt.fd
-File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-)
-Package microtype Info: Loading generic protrusion settings for font family
-(microtype)             `lmtt' (encoding: T1).
-(microtype)             For optimal results, create family-specific settings.
-(microtype)             See the microtype manual for details.
 
-
-[3{/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}] (./eeg_report.aux)
+[3] (./eeg_report.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `eeg_report.out' has not changed.
-(rerunfilecheck)             Checksum: FF87BDCFB2E5EAE429B666F96478CF69;1147.
+(rerunfilecheck)             Checksum: 7691098EC7917832D9E4BE774DDA6F84;881.
  ) 
 Here is how much of TeX's memory you used:
- 38162 strings out of 473190
- 914508 string characters out of 5715800
- 1411836 words of memory out of 5000000
- 60714 multiletter control sequences out of 15000+600000
- 622130 words of font info for 140 fonts, out of 8000000 for 9000
+ 38053 strings out of 473190
+ 912436 string characters out of 5715800
+ 1412815 words of memory out of 5000000
+ 60633 multiletter control sequences out of 15000+600000
+ 620655 words of font info for 129 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  99i,19n,101p,1077b,2313s stack positions out of 10000i,1000n,20000p,200000b,200000s
-</usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmbx10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmbx12.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmmi10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmmi8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmr10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmr8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmri10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmsy10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmtt10.pfb>
-Output written on eeg_report.pdf (3 pages, 288337 bytes).
+</usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmbx10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmbx12.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmmi10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmmi8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmr10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmr8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmri10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/lm/lmsy10.pfb>
+Output written on eeg_report.pdf (3 pages, 261704 bytes).
 PDF statistics:
- 128 PDF objects out of 1000 (max. 8388607)
- 99 compressed objects within 1 object stream
- 21 named destinations out of 1000 (max. 500000)
- 37442 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 115 PDF objects out of 1000 (max. 8388607)
+ 89 compressed objects within 1 object stream
+ 20 named destinations out of 1000 (max. 500000)
+ 34874 words of extra memory for PDF output out of 35830 (max. 10000000)
 
