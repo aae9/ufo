@@ -136,17 +136,6 @@ Dokumentenrecherche) erzeugen messbar mehr aktive Verarbeitung als das
 initiale Überblicksbrowsing oder das ruhige Betrachten der statischen
 Diagramme. Aus UX Sicht liegt darin die Stärke des Entwurfs, da dort der User am fokusiertesten ist.
 
-### Einschränkungen
-
-Es handelt sich um eine indirekte Messung über den gerenderten Streifen, dessen
-Bandgrenzen und Schwellenwerte vom erzeugenden Tool vorgegeben sind. Die
-frontale Ableitung dämpft Alphaspitzen, und Artefakte durch Lidbewegungen,
-Muskelaktivität oder Sprechen sind möglich. Mit **n = 1** und ohne Baseline ist
-die Auswertung explorativ und nicht statistisch belastbar. Für belastbare Werte
-wären eine kurze Baseline (Augen zu und auf, Kontrolle der Alpha Blockade)
-sowie ein Rohsignal Export für die direkte Bandleistung via PSD
-(`mne ... compute_psd`) erforderlich.
-
 Die vollständige Auswertung inklusive Diagramm und Frames findet sich in
 `EEG_Output.pdf`.
 
